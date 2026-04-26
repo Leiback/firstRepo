@@ -269,8 +269,8 @@ async function handleItinerary(
   const stream = client.messages.stream({
     model: "claude-sonnet-4-6",
     max_tokens: 12000,
-    thinking: { type: "adaptive" },
-    output_config: { effort: "medium" },
+    thinking: { type: "disabled" },
+    output_config: { effort: "low" },
     system: [
       {
         type: "text",
