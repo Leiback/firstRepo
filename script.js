@@ -560,33 +560,33 @@ function setupDetails() {
     });
   });
 
-  const list = $("origin-list");
-  list.innerHTML = ORIGIN_CITIES.map(c => `<option value="${ORIGIN_LABEL(c)}"></option>`).join("");
-  const input = $("origin-input");
-  const status = $("origin-status");
+  const originList = $("origin-list");
+  originList.innerHTML = ORIGIN_CITIES.map(c => `<option value="${ORIGIN_LABEL(c)}"></option>`).join("");
+  const originInput = $("origin-input");
+  const originStatus = $("origin-status");
   const updateOrigin = () => {
-    const val = input.value.trim();
+    const val = originInput.value.trim();
     if (!val) {
       state.origin = null;
-      status.textContent = "Optional — improves recommendations.";
-      status.className = "origin-status";
+      originStatus.textContent = "Optional — improves recommendations.";
+      originStatus.className = "origin-status";
       return;
     }
     const match = ORIGIN_CITIES.find(c => ORIGIN_LABEL(c).toLowerCase() === val.toLowerCase()
       || c.name.toLowerCase() === val.toLowerCase());
     if (match) {
       state.origin = { ...match };
-      input.value = ORIGIN_LABEL(match);
-      status.textContent = `✓ Coming from ${ORIGIN_LABEL(match)}`;
-      status.className = "origin-status ok";
+      originInput.value = ORIGIN_LABEL(match);
+      originStatus.textContent = `✓ Coming from ${ORIGIN_LABEL(match)}`;
+      originStatus.className = "origin-status ok";
     } else {
       state.origin = null;
-      status.textContent = "Pick a city from the list (or leave blank).";
-      status.className = "origin-status warn";
+      originStatus.textContent = "Pick a city from the list (or leave blank).";
+      originStatus.className = "origin-status warn";
     }
   };
-  input.addEventListener("change", updateOrigin);
-  input.addEventListener("blur", updateOrigin);
+  originInput.addEventListener("change", updateOrigin);
+  originInput.addEventListener("blur", updateOrigin);
 }
 
 // ---------- Ranking ----------
