@@ -713,15 +713,41 @@ function renderActivities() {
 function setupDetails() {
   const slider = $("days-slider");
   const input = $("days-input");
-  const sync = (v) => {
-    const n = Math.max(1, Math.min(60, parseInt(v, 10) || 1));
+
+  // Slider always reflects a valid number — write it back to the input.
+  slider.addEventListener("input", (e) => {
+    const n = Math.max(1, Math.min(60, parseInt(e.target.value, 10) || 1));
+    state.days = n;
+    input.value = n;
+    updateEndDateLabel();
+  });
+
+  // While typing in the input, don't fight the user. Update state on the fly
+  // but DO NOT rewrite the input — let them clear and retype freely.
+  input.addEventListener("input", (e) => {
+    const raw = e.target.value.trim();
+    if (raw === "") return; // mid-edit; don't snap to a default
+    const n = parseInt(raw, 10);
+    if (Number.isNaN(n)) return;
+    state.days = Math.max(1, Math.min(60, n));
+    if (state.days <= parseInt(slider.max, 10)) slider.value = state.days;
+    updateEndDateLabel();
+  });
+
+  // On blur (or Enter), commit a valid number — clamp + write back.
+  const commitDays = () => {
+    let n = parseInt(input.value, 10);
+    if (Number.isNaN(n) || n < 1) n = 1;
+    if (n > 60) n = 60;
     state.days = n;
     input.value = n;
     if (n <= parseInt(slider.max, 10)) slider.value = n;
     updateEndDateLabel();
   };
-  slider.addEventListener("input", (e) => sync(e.target.value));
-  input.addEventListener("input", (e) => sync(e.target.value));
+  input.addEventListener("blur", commitDays);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+  });
 
   const dateInput = $("start-date");
   dateInput.addEventListener("input", () => {
