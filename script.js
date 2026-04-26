@@ -257,6 +257,7 @@ const state = {
   lockedDests: new Set(),
   viewMode: "cards",
   multiCity: [],
+  itineraryMode: null,
 };
 
 // ---------- Itinerary persistence ----------
@@ -614,8 +615,11 @@ function renderSavedItinerary(text) {
   if (content) {
     content.innerHTML = window.marked ? marked.parse(text) : text.replace(/</g, "&lt;");
   }
+  state.itineraryMode = "full";
   const refine = $("ai-refine");
   if (refine) refine.style.display = "";
+  const upgrade = $("ai-upgrade");
+  if (upgrade) upgrade.style.display = "none";
   const btn = $("ai-btn");
   if (btn) btn.textContent = "✨ Regenerate";
   const dl = $("download-btn");
@@ -1131,6 +1135,7 @@ function renderComparison() {
 // ---------- Result ----------
 function showResult(dest) {
   state.lastDest = dest;
+  state.itineraryMode = null;
   const card = $("result-card");
   const matchedLabels = dest.matches ? dest.matches.map(labelFor).join(", ") : dest.tags.filter(t => state.selected.has(t)).map(labelFor).join(", ");
   const purposeList = [...state.purposes];
@@ -1172,6 +1177,10 @@ function showResult(dest) {
     </div>
     <div id="ai-output" class="ai-output">
       <div class="ai-content"></div>
+      <div class="ai-upgrade" id="ai-upgrade" style="display:none">
+        <button class="primary" id="upgrade-btn">✨ Get the full itinerary</button>
+        <span class="ai-upgrade-hint">Like the angle? Expand into a detailed day-by-day plan.</span>
+      </div>
       <div class="ai-refine" id="ai-refine" style="display:none">
         <input type="text" id="refine-input" placeholder="Want changes? e.g., 'shorter mornings', 'add a cooking class on day 3', 'fewer museums'" />
         <button class="ghost" id="refine-btn">Refine</button>
@@ -1190,9 +1199,14 @@ function showResult(dest) {
   $("ai-btn").addEventListener("click", () => {
     if (state.abortController) {
       state.abortController.abort();
-    } else {
-      generateItinerary(dest);
+      return;
     }
+    // Regenerate in the same mode currently shown; default to preview for first run
+    const mode = state.itineraryMode || "preview";
+    generateItinerary(dest, mode);
+  });
+  $("upgrade-btn").addEventListener("click", () => {
+    generateItinerary(dest, "full");
   });
   $("download-btn").addEventListener("click", () => {
     const text = state.itineraries[dest.name] || loadItinerary(dest.name);
@@ -1218,17 +1232,20 @@ function showResult(dest) {
   goTo("step-result");
 }
 
-async function streamMarkdownToContent(url, body, dest, btn) {
+async function streamMarkdownToContent(url, body, dest, btn, opts = {}) {
+  const isPreview = opts.mode === "preview";
   const out = $("ai-output");
   const content = out.querySelector(".ai-content");
   const refine = $("ai-refine");
+  const upgrade = $("ai-upgrade");
   state.abortController = new AbortController();
   btn.textContent = "✕ Cancel";
   btn.classList.remove("primary");
   btn.classList.add("ghost");
   out.classList.add("active");
   if (refine) refine.style.display = "none";
-  content.innerHTML = `<div class="ai-loading">Thinking through your trip<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>`;
+  if (upgrade) upgrade.style.display = "none";
+  content.innerHTML = `<div class="ai-loading">${isPreview ? "Sketching the trip" : "Building the full plan"}<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>`;
 
   let buf = "";
   try {
@@ -1254,11 +1271,21 @@ async function streamMarkdownToContent(url, body, dest, btn) {
       content.innerHTML = window.marked ? marked.parse(buf) : buf.replace(/</g, "&lt;");
     }
 
-    saveItinerary(dest.name, buf);
-    btn.textContent = "✨ Regenerate";
+    if (isPreview) {
+      state.itineraries[dest.name] = buf; // in-memory only
+      state.itineraryMode = "preview";
+      btn.textContent = "✨ Regenerate preview";
+      if (upgrade) upgrade.style.display = "";
+      $("download-btn").style.display = "none";
+    } else {
+      saveItinerary(dest.name, buf);
+      state.itineraryMode = "full";
+      btn.textContent = "✨ Regenerate";
+      if (upgrade) upgrade.style.display = "none";
+      $("download-btn").style.display = "";
+    }
     btn.classList.remove("ghost");
     btn.classList.add("primary");
-    $("download-btn").style.display = "";
     if (refine) {
       refine.style.display = "";
       $("refine-input").value = "";
@@ -1269,10 +1296,12 @@ async function streamMarkdownToContent(url, body, dest, btn) {
       const had = loadItinerary(dest.name);
       if (had) {
         content.innerHTML = window.marked ? marked.parse(had) : had.replace(/</g, "&lt;");
+        state.itineraryMode = "full";
         if (refine) refine.style.display = "";
         btn.textContent = "✨ Regenerate";
       } else {
         content.innerHTML = `<div class="ai-loading">Cancelled.</div>`;
+        state.itineraryMode = null;
         btn.textContent = "✨ Generate AI itinerary";
       }
     } else {
@@ -1288,7 +1317,7 @@ async function streamMarkdownToContent(url, body, dest, btn) {
   }
 }
 
-async function generateItinerary(dest) {
+async function generateItinerary(dest, mode = "preview") {
   return streamMarkdownToContent(
     `${WORKER_URL}/itinerary`,
     {
@@ -1301,15 +1330,18 @@ async function generateItinerary(dest) {
       origin: state.origin?.name,
       startDate: state.startDate || undefined,
       group: state.group || undefined,
+      mode,
     },
     dest,
     $("ai-btn"),
+    { mode },
   );
 }
 
 async function refineItinerary(dest, instruction) {
   const current = loadItinerary(dest.name) || state.itineraries[dest.name];
   if (!current) return;
+  // Refining always returns a full plan (Sonnet via /refine).
   return streamMarkdownToContent(
     `${WORKER_URL}/refine`,
     {
@@ -1327,6 +1359,7 @@ async function refineItinerary(dest, instruction) {
     },
     dest,
     $("ai-btn"),
+    { mode: "full" },
   );
 }
 

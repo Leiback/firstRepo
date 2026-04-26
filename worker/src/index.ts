@@ -260,6 +260,7 @@ interface ItineraryRequest {
   origin?: string;
   startDate?: string;
   group?: string;
+  mode?: "preview" | "full";
 }
 
 interface RefineRequest extends ItineraryRequest {
@@ -398,21 +399,35 @@ async function handleItinerary(
 
   const userPrompt = buildItineraryUserPrompt(body);
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const isPreview = body.mode === "preview";
 
-  const stream = client.messages.stream({
-    model: "claude-sonnet-4-6",
-    max_tokens: 12000,
-    thinking: { type: "disabled" },
-    output_config: { effort: "low" },
-    system: [
-      {
-        type: "text",
-        text: ITINERARY_SYSTEM_PROMPT,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages: [{ role: "user", content: userPrompt }],
-  });
+  const stream = isPreview
+    ? client.messages.stream({
+        model: "claude-haiku-4-5",
+        max_tokens: 1500,
+        system: [
+          {
+            type: "text",
+            text: PREVIEW_SYSTEM_PROMPT,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+        messages: [{ role: "user", content: userPrompt }],
+      })
+    : client.messages.stream({
+        model: "claude-sonnet-4-6",
+        max_tokens: 12000,
+        thinking: { type: "disabled" },
+        output_config: { effort: "low" },
+        system: [
+          {
+            type: "text",
+            text: ITINERARY_SYSTEM_PROMPT,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+        messages: [{ role: "user", content: userPrompt }],
+      });
 
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer = writable.getWriter();
@@ -444,6 +459,22 @@ async function handleItinerary(
     },
   });
 }
+
+const PREVIEW_SYSTEM_PROMPT = `You are a travel planner. Write a SHORT preview of a trip — just enough for the user to see the overall arc and decide whether to commit to a full detailed plan.
+
+# Output format (Markdown)
+
+1. A 2-3 sentence **trip overview** describing the trip's structure (e.g., "split between X and Y, base in Z; first half is for adventure, second half slows down").
+2. A bulleted list, **one line per day**, with the day theme and 1-2 specific anchors (named neighborhood, landmark, or activity).
+
+Keep the whole response **under ~150 words**. No bold sections, no Practical Notes, no per-day timing — that's for the full plan.
+
+# Style
+
+- Be specific. Name venues, neighborhoods, regions. "Day 3: Move to Ubud, dinner at Locavore" beats "Day 3: experience Bali".
+- Lean into the trip's actual constraints — days, budget, purposes, group, dates. If dates are given, account for season.
+- Avoid travel-brochure clichés ("hidden gem", "feast for the senses", "must-see").
+- No commentary. Just the overview + day list.`;
 
 const REFINE_SYSTEM_PROMPT = ITINERARY_SYSTEM_PROMPT + `
 
