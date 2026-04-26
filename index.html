@@ -22,22 +22,63 @@
       <div class="grid" id="activity-grid"></div>
       <div class="actions">
         <button class="ghost" data-next="step-intro">Back</button>
-        <button class="primary" id="find-btn" disabled>Show me options</button>
+        <button class="primary" id="next-to-details-btn" disabled>Next</button>
       </div>
     </section>
 
-    <!-- Step 3: pick from matches -->
+    <!-- Step 3: trip details -->
+    <section class="step" id="step-details">
+      <h2>Trip details</h2>
+      <p class="sub">A few specifics to tighten up the recommendations.</p>
+
+      <div class="field">
+        <label class="field-label" for="days-input">How many days?</label>
+        <div class="days-row">
+          <input type="range" id="days-slider" min="1" max="30" value="7" />
+          <input type="number" id="days-input" min="1" max="60" value="7" />
+          <span class="days-unit">days</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Budget</label>
+        <div class="chips" id="budget-chips">
+          <button type="button" class="chip" data-budget="1"><span class="chip-icon">💲</span><span class="chip-label">Budget</span></button>
+          <button type="button" class="chip selected" data-budget="2"><span class="chip-icon">💲💲</span><span class="chip-label">Mid-range</span></button>
+          <button type="button" class="chip" data-budget="3"><span class="chip-icon">💲💲💲</span><span class="chip-label">Splurge</span></button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Purpose of the trip</label>
+        <div class="chips chips-grid" id="purpose-chips">
+          <button type="button" class="chip selected" data-purpose="fun"><span class="chip-icon">🎉</span><span class="chip-label">Fun with friends</span></button>
+          <button type="button" class="chip" data-purpose="family"><span class="chip-icon">👨‍👩‍👧</span><span class="chip-label">Family gathering</span></button>
+          <button type="button" class="chip" data-purpose="romantic"><span class="chip-icon">💞</span><span class="chip-label">Romantic getaway</span></button>
+          <button type="button" class="chip" data-purpose="solo"><span class="chip-icon">🎒</span><span class="chip-label">Solo trip</span></button>
+          <button type="button" class="chip" data-purpose="business"><span class="chip-icon">💼</span><span class="chip-label">Business</span></button>
+          <button type="button" class="chip" data-purpose="other"><span class="chip-icon">✨</span><span class="chip-label">Other</span></button>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="ghost" data-next="step-activities">Back</button>
+        <button class="primary" id="find-btn">Show me options</button>
+      </div>
+    </section>
+
+    <!-- Step 4: pick from matches -->
     <section class="step" id="step-options">
       <h2>Top matches</h2>
       <p class="sub">Pick one — or let me decide.</p>
       <div class="cards" id="options-list"></div>
       <div class="actions">
-        <button class="ghost" data-next="step-activities">Back</button>
+        <button class="ghost" data-next="step-details">Back</button>
         <button class="primary" id="surprise-btn">Surprise me</button>
       </div>
     </section>
 
-    <!-- Step 4: final result -->
+    <!-- Step 5: final result -->
     <section class="step" id="step-result">
       <div id="result-card"></div>
       <div class="actions">
