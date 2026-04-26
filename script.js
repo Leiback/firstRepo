@@ -229,32 +229,34 @@ const DESTINATIONS = [
 ];
 
 const BACKGROUNDS = [
-  "linear-gradient(135deg, #0f1226 0%, #1a1f3d 100%)",  // Northern lights (default-ish)
-  "linear-gradient(135deg, #4b6cb7 0%, #182848 100%)",  // Mountain mist
-  "linear-gradient(135deg, #355c7d 0%, #c06c84 100%)",  // Coastal twilight
-  "linear-gradient(135deg, #134e5e 0%, #71b280 100%)",  // Aurora forest
-  "linear-gradient(135deg, #654ea3 0%, #b67aaa 100%)",  // Tokyo dusk
-  "linear-gradient(135deg, #8b3329 0%, #4f4060 100%)",  // Tuscany evening
-  "linear-gradient(135deg, #b13a35 0%, #6e3270 100%)",  // Saharan dusk
-  "linear-gradient(135deg, #2c3e50 0%, #4ca1af 100%)",  // Misty mountains
-  "linear-gradient(135deg, #0f2027 0%, #2c5364 100%)",  // Ocean storm
-  "linear-gradient(135deg, #5c2974 0%, #834d9b 100%)",  // Vineyard
-  "linear-gradient(135deg, #006994 0%, #2193b0 100%)",  // Pacific deep
-  "linear-gradient(135deg, #1f5582 0%, #2980b9 100%)",  // Greek isle
-  "linear-gradient(135deg, #c5350f 0%, #c98a1a 100%)",  // Andean dawn
-  "linear-gradient(135deg, #c2185b 0%, #d84315 100%)",  // Volcano
-  "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",  // Forest path
-  "linear-gradient(135deg, #134e5e 0%, #00b4d8 100%)",  // Mediterranean
-  "linear-gradient(135deg, #4b6cb7 0%, #6a82fb 100%)",  // Lavender night
-  "linear-gradient(135deg, #a13a14 0%, #c98715 100%)",  // Sahara
-  "linear-gradient(135deg, #2c5364 0%, #834d9b 100%)",  // Plum twilight
-  "linear-gradient(135deg, #4ca1af 0%, #c06c84 100%)",  // Mountain dawn
+  { gradient: "linear-gradient(135deg, #0f1226 0%, #1a1f3d 100%)", emoji: ["✨", "🌌"] },  // Northern lights
+  { gradient: "linear-gradient(135deg, #4b6cb7 0%, #182848 100%)", emoji: ["🏔️", "🥾"] },  // Mountain mist
+  { gradient: "linear-gradient(135deg, #355c7d 0%, #c06c84 100%)", emoji: ["🌅", "🍷"] },  // Coastal twilight
+  { gradient: "linear-gradient(135deg, #134e5e 0%, #71b280 100%)", emoji: ["🌲", "🦌"] },  // Aurora forest
+  { gradient: "linear-gradient(135deg, #654ea3 0%, #b67aaa 100%)", emoji: ["🏮", "🍜"] },  // Tokyo dusk
+  { gradient: "linear-gradient(135deg, #8b3329 0%, #4f4060 100%)", emoji: ["🍇", "🏛️"] },  // Tuscany evening
+  { gradient: "linear-gradient(135deg, #b13a35 0%, #6e3270 100%)", emoji: ["🐪", "🕌"] },  // Saharan dusk
+  { gradient: "linear-gradient(135deg, #2c3e50 0%, #4ca1af 100%)", emoji: ["⛰️", "🌫️"] },  // Misty mountains
+  { gradient: "linear-gradient(135deg, #0f2027 0%, #2c5364 100%)", emoji: ["⛵", "🌊"] },  // Ocean storm
+  { gradient: "linear-gradient(135deg, #5c2974 0%, #834d9b 100%)", emoji: ["🍇", "🌙"] },  // Vineyard
+  { gradient: "linear-gradient(135deg, #006994 0%, #2193b0 100%)", emoji: ["🐬", "🤿"] },  // Pacific deep
+  { gradient: "linear-gradient(135deg, #1f5582 0%, #2980b9 100%)", emoji: ["🏝️", "⛴️"] },  // Greek isle
+  { gradient: "linear-gradient(135deg, #c5350f 0%, #c98a1a 100%)", emoji: ["🦙", "🏔️"] },  // Andean dawn
+  { gradient: "linear-gradient(135deg, #c2185b 0%, #d84315 100%)", emoji: ["🌋", "🔥"] },  // Volcano
+  { gradient: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)", emoji: ["🌴", "🌿"] },  // Forest path
+  { gradient: "linear-gradient(135deg, #134e5e 0%, #00b4d8 100%)", emoji: ["🏖️", "🍋"] },  // Mediterranean
+  { gradient: "linear-gradient(135deg, #4b6cb7 0%, #6a82fb 100%)", emoji: ["💜", "🌌"] },  // Lavender night
+  { gradient: "linear-gradient(135deg, #a13a14 0%, #c98715 100%)", emoji: ["🌅", "🐫"] },  // Sahara
+  { gradient: "linear-gradient(135deg, #2c5364 0%, #834d9b 100%)", emoji: ["🌃", "🛺"] },  // Plum twilight
+  { gradient: "linear-gradient(135deg, #4ca1af 0%, #c06c84 100%)", emoji: ["🌄", "🎈"] },  // Mountain dawn
 ];
 
 function pickBackground() {
   const bg = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)];
-  document.body.style.background = bg;
+  document.body.style.background = bg.gradient;
   document.body.style.backgroundAttachment = "fixed";
+  document.documentElement.style.setProperty("--bg-emoji-1", `"${bg.emoji[0]}"`);
+  document.documentElement.style.setProperty("--bg-emoji-2", `"${bg.emoji[1]}"`);
 }
 
 pickBackground();

@@ -461,21 +461,23 @@ async function handleItinerary(
   });
 }
 
-const PREVIEW_SYSTEM_PROMPT = `You write quick day-by-day travel sketches. For each day of the trip, output ONE bullet point with the major places to visit or activities to do that day. No overview paragraph, no tips, no practical notes — just the day list.
+const PREVIEW_SYSTEM_PROMPT = `You write quick day-by-day travel sketches. For each day, output ONE bulleted line in the format "Day N: <activities>". No overview paragraph, no tips, no notes — just the day list.
 
 # Output format (Markdown)
 
-- **Day 1:** <neighborhood or area> — <main activity or place>, <secondary activity or place>
-- **Day 2:** ...
-- ...
+- Day 1: <comma-separated places/activities for the day>
+- Day 2: <comma-separated places/activities for the day>
+- Day 3: ...
 
-Keep each line tight: 1 line per day, 2-3 specific anchors max. No commentary above or below the list.
+Plain text after the colon. No bold, no em-dashes, no extra structure. Just the day number, a colon, and a short comma-separated list of places/activities.
 
 # Style
 
-- Be specific. Name actual neighborhoods, landmarks, venues. "Day 3: Ubud — Tegallalang rice terraces, Sacred Monkey Forest" beats "Day 3: explore Bali."
+- Be specific. Name real neighborhoods, landmarks, venues. "Day 3: Ubud, Tegallalang rice terraces, Sacred Monkey Forest" beats "Day 3: explore Bali."
+- 2-4 anchors per day max. Keep each line short and scannable.
 - Match the trip's days, budget, purposes, group, and dates. If dates are given, account for season.
-- Avoid travel-brochure clichés ("hidden gem", "must-see").`;
+- Avoid travel-brochure clichés ("hidden gem", "must-see").
+- No commentary above or below the list.`;
 
 const REFINE_SYSTEM_PROMPT = ITINERARY_SYSTEM_PROMPT + `
 
