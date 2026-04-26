@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Where Should I Go?</title>
-  <link rel="stylesheet" href="styles.css?v=8" />
+  <link rel="stylesheet" href="styles.css?v=9" />
 </head>
 <body>
   <main id="app">
@@ -100,6 +100,14 @@
         <button class="ghost" id="compare-btn" disabled>Compare top 3</button>
         <button class="primary" id="surprise-btn">Surprise me</button>
       </div>
+      <div id="refresh-panel" class="refresh-panel">
+        <label class="field-label" for="refresh-note">What would you like different? <span class="field-hint">(optional)</span></label>
+        <textarea id="refresh-note" placeholder="e.g. less beachy, more European cities, somewhere quieter, skip island destinations"></textarea>
+        <div class="refresh-panel-actions">
+          <button class="ghost" id="refresh-cancel">Cancel</button>
+          <button class="primary" id="refresh-submit">Get fresh picks</button>
+        </div>
+      </div>
     </section>
 
     <!-- Step 4b: side-by-side comparison -->
@@ -123,6 +131,6 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/marked@14.1.4/marked.min.js"></script>
-  <script src="script.js?v=8"></script>
+  <script src="script.js?v=9"></script>
 </body>
 </html>

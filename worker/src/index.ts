@@ -181,6 +181,7 @@ interface DestinationsRequest {
   purposes?: string[];
   transport?: string;
   origin?: string;
+  feedback?: string;
 }
 
 function buildItineraryUserPrompt(req: ItineraryRequest): string {
@@ -226,6 +227,11 @@ function buildDestinationsUserPrompt(req: DestinationsRequest): string {
   }
   if (req.origin) lines.push(`Origin: ${req.origin}.`);
   lines.push(`Suggest 5 to 7 destinations.`);
+  if (req.feedback && req.feedback.trim()) {
+    lines.push(
+      `\nThe traveler asked for fresh picks and left this note: "${req.feedback.trim()}". Use it as steering — actively avoid the kind of destination they're rejecting and lean into what they're asking for. Treat their note as the highest-priority signal beyond the hard constraints (budget tier, transport caps, origin exclusion).`,
+    );
+  }
   return lines.join("\n");
 }
 

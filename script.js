@@ -728,7 +728,7 @@ function optionsKey() {
   });
 }
 
-async function renderOptions(force = false) {
+async function renderOptions(force = false, feedback = null) {
   const list = $("options-list");
   const key = optionsKey();
 
@@ -740,7 +740,7 @@ async function renderOptions(force = false) {
     return;
   }
 
-  list.innerHTML = `<div class="ai-loading">Picking 5–7 destinations for you<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>`;
+  list.innerHTML = `<div class="ai-loading">${feedback ? "Steering toward what you asked for" : "Picking 5–7 destinations for you"}<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>`;
   $("compare-btn").disabled = true;
   $("surprise-btn").disabled = true;
   $("multi-city").classList.remove("active");
@@ -757,6 +757,7 @@ async function renderOptions(force = false) {
         purposes: [...state.purposes],
         transport: state.transport,
         origin: state.origin?.name,
+        feedback: feedback || undefined,
       }),
     });
     if (res.ok) {
@@ -1062,7 +1063,21 @@ document.querySelectorAll("[data-next]").forEach(btn => {
 $("next-to-details-btn").addEventListener("click", () => goTo("step-details"));
 $("find-btn").addEventListener("click", () => goTo("step-options"));
 $("compare-btn").addEventListener("click", () => goTo("step-compare"));
-$("refresh-btn").addEventListener("click", () => renderOptions(true));
+$("refresh-btn").addEventListener("click", () => {
+  const panel = $("refresh-panel");
+  panel.classList.add("active");
+  setTimeout(() => $("refresh-note").focus(), 50);
+});
+$("refresh-cancel").addEventListener("click", () => {
+  $("refresh-panel").classList.remove("active");
+  $("refresh-note").value = "";
+});
+$("refresh-submit").addEventListener("click", () => {
+  const note = $("refresh-note").value.trim();
+  $("refresh-panel").classList.remove("active");
+  $("refresh-note").value = "";
+  renderOptions(true, note || null);
+});
 
 $("surprise-btn").addEventListener("click", () => {
   if (state.ranked.length === 0) return;
