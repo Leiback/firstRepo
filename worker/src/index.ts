@@ -176,6 +176,11 @@ interface ItineraryRequest {
   group?: string;
 }
 
+interface RefineRequest extends ItineraryRequest {
+  currentItinerary?: string;
+  instruction?: string;
+}
+
 interface DestinationsRequest {
   activities?: string[];
   days?: number;
@@ -350,6 +355,84 @@ async function handleItinerary(
   });
 }
 
+const REFINE_SYSTEM_PROMPT = ITINERARY_SYSTEM_PROMPT + `
+
+# Refinement mode
+
+You are revising an existing itinerary. Apply the user's refinement and emit the FULL revised itinerary in the same format. Keep what they liked, change what they asked you to change. Don't add commentary about what you changed — just emit the new itinerary, ready to read.`;
+
+async function handleRefine(
+  request: Request,
+  env: Env,
+  cors: Record<string, string>,
+): Promise<Response> {
+  let body: RefineRequest;
+  try {
+    body = (await request.json()) as RefineRequest;
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+      status: 400,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+  if (!body.destination || !body.days || !body.currentItinerary || !body.instruction) {
+    return new Response(
+      JSON.stringify({ error: "Missing destination, days, currentItinerary, or instruction" }),
+      { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
+    );
+  }
+
+  const baseContext = buildItineraryUserPrompt(body);
+  const userPrompt = `${baseContext}
+
+Current itinerary:
+
+${body.currentItinerary}
+
+Refinement requested: "${body.instruction}"
+
+Apply this refinement and emit the full revised itinerary.`;
+
+  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const stream = client.messages.stream({
+    model: "claude-sonnet-4-6",
+    max_tokens: 12000,
+    thinking: { type: "disabled" },
+    output_config: { effort: "low" },
+    system: [
+      { type: "text", text: REFINE_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+    ],
+    messages: [{ role: "user", content: userPrompt }],
+  });
+
+  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
+
+  (async () => {
+    try {
+      for await (const event of stream) {
+        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+          await writer.write(encoder.encode(event.delta.text));
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "stream error";
+      await writer.write(encoder.encode(`\n\n[error: ${msg}]`));
+    } finally {
+      await writer.close();
+    }
+  })();
+
+  return new Response(readable, {
+    headers: {
+      ...cors,
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
 async function handleDestinations(
   request: Request,
   env: Env,
@@ -424,6 +507,9 @@ export default {
 
     if (url.pathname === "/itinerary") {
       return handleItinerary(request, env, cors);
+    }
+    if (url.pathname === "/refine") {
+      return handleRefine(request, env, cors);
     }
     if (url.pathname === "/destinations") {
       return handleDestinations(request, env, cors);

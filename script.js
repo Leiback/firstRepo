@@ -249,6 +249,7 @@ const MULTI_CITY_TRIPS = [
 
 const FAVORITES_KEY = "travelapp:favorites";
 const IMG_CACHE_PREFIX = "travelapp:img:";
+const ITIN_PREFIX = "travelapp:itin:";
 const WORKER_URL = "https://travelapp-worker.travelapp.workers.dev";
 
 const TRANSPORT = {
@@ -271,7 +272,43 @@ const state = {
   ranked: [],
   lastDest: null,
   itineraries: {},
+  abortController: null,
 };
+
+// ---------- Itinerary persistence ----------
+function saveItinerary(destName, text) {
+  state.itineraries[destName] = text;
+  try { localStorage.setItem(ITIN_PREFIX + destName, text); } catch {}
+}
+function loadItinerary(destName) {
+  if (state.itineraries[destName]) return state.itineraries[destName];
+  try {
+    const stored = localStorage.getItem(ITIN_PREFIX + destName);
+    if (stored) {
+      state.itineraries[destName] = stored;
+      return stored;
+    }
+  } catch {}
+  return null;
+}
+function downloadItinerary(destName, text) {
+  const safe = destName.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  const datePart = state.startDate || new Date().toISOString().slice(0, 10);
+  const filename = `${safe}-${datePart}.md`;
+  const header =
+    `# ${destName} — ${state.days} day${state.days === 1 ? "" : "s"}` +
+    (state.startDate ? ` (${formatDateRange(state.startDate, state.days)})` : "") +
+    `\n\n`;
+  const blob = new Blob([header + text], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 // ---------- Compress / decompress (for share URL itinerary) ----------
 async function compressToB64Url(text) {
@@ -570,7 +607,7 @@ function applyURLState() {
     }
     if (itinB64) {
       decompressFromB64Url(itinB64).then((text) => {
-        state.itineraries[d.name] = text;
+        saveItinerary(d.name, text);
         renderSavedItinerary(text);
       }).catch((e) => console.warn("itinerary decompress failed:", e));
     }
@@ -589,9 +626,16 @@ function renderSavedItinerary(text) {
   const out = $("ai-output");
   if (!out) return;
   out.classList.add("active");
-  out.innerHTML = `<div class="ai-content">${window.marked ? marked.parse(text) : text.replace(/</g, "&lt;")}</div>`;
+  const content = out.querySelector(".ai-content");
+  if (content) {
+    content.innerHTML = window.marked ? marked.parse(text) : text.replace(/</g, "&lt;");
+  }
+  const refine = $("ai-refine");
+  if (refine) refine.style.display = "";
   const btn = $("ai-btn");
   if (btn) btn.textContent = "✨ Regenerate";
+  const dl = $("download-btn");
+  if (dl) dl.style.display = "";
 }
 
 async function copyShareLink(destName) {
@@ -1033,8 +1077,15 @@ function showResult(dest) {
       <button class="ghost fav-btn ${fav ? "active" : ""}" id="fav-btn">${fav ? "★ Saved" : "☆ Save"}</button>
       <button class="ghost" id="share-btn">🔗 Copy share link</button>
       <button class="primary" id="ai-btn">✨ Generate AI itinerary</button>
+      <button class="ghost" id="download-btn" style="display:none">⬇ Download</button>
     </div>
-    <div id="ai-output" class="ai-output"></div>
+    <div id="ai-output" class="ai-output">
+      <div class="ai-content"></div>
+      <div class="ai-refine" id="ai-refine" style="display:none">
+        <input type="text" id="refine-input" placeholder="Want changes? e.g., 'shorter mornings', 'add a cooking class on day 3', 'fewer museums'" />
+        <button class="ghost" id="refine-btn">Refine</button>
+      </div>
+    </div>
   `;
   applyImage($("result-card").querySelector(".result-hero"), dest.wikiTitle, "full");
   $("fav-btn").addEventListener("click", () => {
@@ -1045,47 +1096,66 @@ function showResult(dest) {
     btn.textContent = isFav ? "★ Saved" : "☆ Save";
   });
   $("share-btn").addEventListener("click", () => copyShareLink(dest.name));
-  $("ai-btn").addEventListener("click", () => generateItinerary(dest));
+  $("ai-btn").addEventListener("click", () => {
+    if (state.abortController) {
+      state.abortController.abort();
+    } else {
+      generateItinerary(dest);
+    }
+  });
+  $("download-btn").addEventListener("click", () => {
+    const text = state.itineraries[dest.name] || loadItinerary(dest.name);
+    if (text) downloadItinerary(dest.name, text);
+  });
+
+  $("refine-btn").addEventListener("click", () => {
+    const instr = $("refine-input").value.trim();
+    if (!instr) return;
+    refineItinerary(dest, instr);
+  });
+  $("refine-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); $("refine-btn").click(); }
+  });
+
+  const saved = loadItinerary(dest.name);
+  if (saved) {
+    $("ai-btn").textContent = "✨ Regenerate";
+    $("download-btn").style.display = "";
+    renderSavedItinerary(saved);
+  }
+
   goTo("step-result");
 }
 
-async function generateItinerary(dest) {
-  const btn = $("ai-btn");
+async function streamMarkdownToContent(url, body, dest, btn) {
   const out = $("ai-output");
-  btn.disabled = true;
-  btn.textContent = "Generating…";
+  const content = out.querySelector(".ai-content");
+  const refine = $("ai-refine");
+  state.abortController = new AbortController();
+  btn.textContent = "✕ Cancel";
+  btn.classList.remove("primary");
+  btn.classList.add("ghost");
   out.classList.add("active");
-  out.innerHTML = `<div class="ai-loading">Thinking through your trip<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>`;
+  if (refine) refine.style.display = "none";
+  content.innerHTML = `<div class="ai-loading">Thinking through your trip<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>`;
 
+  let buf = "";
   try {
-    const res = await fetch(`${WORKER_URL}/itinerary`, {
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        destination: dest.name,
-        country: dest.country,
-        days: state.days,
-        budget: dest.budget,
-        purposes: [...state.purposes],
-        transport: state.transport,
-        origin: state.origin?.name,
-        startDate: state.startDate || undefined,
-        group: state.group || undefined,
-      }),
+      signal: state.abortController.signal,
+      body: JSON.stringify(body),
     });
-
     if (!res.ok) {
       let msg = `HTTP ${res.status}`;
       try { const j = await res.json(); if (j.error) msg = j.error; } catch {}
       throw new Error(msg);
     }
 
-    out.innerHTML = `<div class="ai-content"></div>`;
-    const content = out.querySelector(".ai-content");
+    content.innerHTML = "";
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    let buf = "";
-
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -1093,14 +1163,80 @@ async function generateItinerary(dest) {
       content.innerHTML = window.marked ? marked.parse(buf) : buf.replace(/</g, "&lt;");
     }
 
-    state.itineraries[dest.name] = buf;
+    saveItinerary(dest.name, buf);
     btn.textContent = "✨ Regenerate";
+    btn.classList.remove("ghost");
+    btn.classList.add("primary");
+    $("download-btn").style.display = "";
+    if (refine) {
+      refine.style.display = "";
+      $("refine-input").value = "";
+    }
+    return buf;
   } catch (err) {
-    out.innerHTML = `<div class="ai-error">Couldn't generate the itinerary: ${err.message}</div>`;
-    btn.textContent = "✨ Try again";
+    if (err.name === "AbortError") {
+      const had = loadItinerary(dest.name);
+      if (had) {
+        content.innerHTML = window.marked ? marked.parse(had) : had.replace(/</g, "&lt;");
+        if (refine) refine.style.display = "";
+        btn.textContent = "✨ Regenerate";
+      } else {
+        content.innerHTML = `<div class="ai-loading">Cancelled.</div>`;
+        btn.textContent = "✨ Generate AI itinerary";
+      }
+    } else {
+      content.innerHTML = `<div class="ai-error">Couldn't generate: ${err.message}</div>`;
+      btn.textContent = loadItinerary(dest.name) ? "✨ Regenerate" : "✨ Try again";
+      if (refine && loadItinerary(dest.name)) refine.style.display = "";
+    }
+    btn.classList.remove("ghost");
+    btn.classList.add("primary");
+    return null;
   } finally {
-    btn.disabled = false;
+    state.abortController = null;
   }
+}
+
+async function generateItinerary(dest) {
+  return streamMarkdownToContent(
+    `${WORKER_URL}/itinerary`,
+    {
+      destination: dest.name,
+      country: dest.country,
+      days: state.days,
+      budget: dest.budget,
+      purposes: [...state.purposes],
+      transport: state.transport,
+      origin: state.origin?.name,
+      startDate: state.startDate || undefined,
+      group: state.group || undefined,
+    },
+    dest,
+    $("ai-btn"),
+  );
+}
+
+async function refineItinerary(dest, instruction) {
+  const current = loadItinerary(dest.name) || state.itineraries[dest.name];
+  if (!current) return;
+  return streamMarkdownToContent(
+    `${WORKER_URL}/refine`,
+    {
+      destination: dest.name,
+      country: dest.country,
+      days: state.days,
+      budget: dest.budget,
+      purposes: [...state.purposes],
+      transport: state.transport,
+      origin: state.origin?.name,
+      startDate: state.startDate || undefined,
+      group: state.group || undefined,
+      currentItinerary: current,
+      instruction,
+    },
+    dest,
+    $("ai-btn"),
+  );
 }
 
 function showMultiCityResult(trip) {
