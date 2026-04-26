@@ -1423,6 +1423,10 @@ $("view-map-btn").addEventListener("click", () => setViewMode("map"));
 // Result page: clicking outside the card (or pressing Esc) goes back to options
 document.addEventListener("click", (e) => {
   if (!$("step-result").classList.contains("active")) return;
+  // Ignore clicks whose target lives in a step that just became inactive
+  // (e.g., the dest-card click in step-options that triggered showResult)
+  const targetStep = e.target.closest(".step");
+  if (targetStep && !targetStep.classList.contains("active")) return;
   if ($("result-card").contains(e.target)) return;
   if (e.target.closest(".actions")) return;
   goTo("step-options");
