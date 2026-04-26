@@ -261,7 +261,28 @@ const state = {
   origin: null,
   ranked: [],
   lastDest: null,
+  itineraries: {},
 };
+
+// ---------- Compress / decompress (for share URL itinerary) ----------
+async function compressToB64Url(text) {
+  const stream = new Blob([text]).stream().pipeThrough(new CompressionStream("gzip"));
+  const buf = await new Response(stream).arrayBuffer();
+  const u8 = new Uint8Array(buf);
+  let bin = "";
+  for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function decompressFromB64Url(b64) {
+  let s = b64.replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  const bin = atob(s);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return await new Response(stream).text();
+}
 
 const $ = (id) => document.getElementById(id);
 const destByName = (name) => DESTINATIONS.find(d => d.name === name);
@@ -398,7 +419,7 @@ function renderFavorites() {
 }
 
 // ---------- URL state (share links) ----------
-function encodeStateToURL(destName) {
+async function encodeStateToURL(destName) {
   const params = new URLSearchParams();
   if (state.selected.size) params.set("picks", [...state.selected].join(","));
   params.set("days", state.days);
@@ -407,8 +428,14 @@ function encodeStateToURL(destName) {
   params.set("transport", state.transport);
   if (state.origin) params.set("origin", state.origin.name);
   if (destName) params.set("dest", destName);
-  const url = `${location.origin}${location.pathname}?${params.toString()}`;
-  return url;
+  if (destName && state.itineraries[destName]) {
+    try {
+      params.set("itin", await compressToB64Url(state.itineraries[destName]));
+    } catch (e) {
+      console.warn("itinerary compression failed:", e);
+    }
+  }
+  return `${location.origin}${location.pathname}?${params.toString()}`;
 }
 
 function applyURLState() {
@@ -420,7 +447,8 @@ function applyURLState() {
   const transportParam = params.get("transport");
   const originName = params.get("origin");
   const dest = params.get("dest");
-  if (!picks.length && !days && !budget && !purposesParam && !transportParam && !originName && !dest) return false;
+  const itinB64 = params.get("itin");
+  if (!picks.length && !days && !budget && !purposesParam && !transportParam && !originName && !dest && !itinB64) return false;
 
   picks.forEach(p => state.selected.add(p));
   document.querySelectorAll("#activity-grid .activity").forEach(el => {
@@ -456,8 +484,31 @@ function applyURLState() {
     }
   }
   if (dest) {
-    const d = destByName(dest);
-    if (d) { showResult(d); return true; }
+    let d = destByName(dest);
+    if (!d) {
+      // Shared link from an AI-generated destination not in our local list — synthesize a minimal record
+      d = {
+        name: dest,
+        country: "",
+        flag: "🌍",
+        wikiTitle: dest.replace(/\s+/g, "_"),
+        budget: state.budget,
+        purposes: [],
+        idealDays: [Number.isFinite(days) ? days : 5, Number.isFinite(days) ? days : 7],
+        bestMonths: [1,2,3,4,5,6,7,8,9,10,11,12],
+        tags: [...state.selected],
+        desc: "Shared destination.",
+        lat: 0, lng: 0,
+      };
+    }
+    if (itinB64) {
+      decompressFromB64Url(itinB64).then((text) => {
+        state.itineraries[d.name] = text;
+        renderSavedItinerary(text);
+      }).catch((e) => console.warn("itinerary decompress failed:", e));
+    }
+    showResult(d);
+    return true;
   }
   if (state.selected.size) {
     $("next-to-details-btn").disabled = false;
@@ -467,11 +518,21 @@ function applyURLState() {
   return true;
 }
 
+function renderSavedItinerary(text) {
+  const out = $("ai-output");
+  if (!out) return;
+  out.classList.add("active");
+  out.innerHTML = `<div class="ai-content">${window.marked ? marked.parse(text) : text.replace(/</g, "&lt;")}</div>`;
+  const btn = $("ai-btn");
+  if (btn) btn.textContent = "✨ Regenerate";
+}
+
 async function copyShareLink(destName) {
-  const url = encodeStateToURL(destName);
+  const url = await encodeStateToURL(destName);
   try {
     await navigator.clipboard.writeText(url);
-    showToast("Link copied — share away ✨");
+    const hasItin = destName && state.itineraries[destName];
+    showToast(hasItin ? "Link copied — itinerary included ✨" : "Link copied — share away ✨");
   } catch {
     showToast(url);
   }
@@ -656,48 +717,99 @@ function rankMultiCity() {
 }
 
 // ---------- Options page ----------
-function renderOptions() {
-  state.ranked = rankDestinations();
+async function renderOptions() {
   const list = $("options-list");
+  list.innerHTML = `<div class="ai-loading">Picking 5–7 destinations for you<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>`;
+  $("compare-btn").disabled = true;
+  $("surprise-btn").disabled = true;
+  $("multi-city").classList.remove("active");
 
-  if (state.ranked.length === 0) {
-    list.innerHTML = `<p class="sub">No matches yet — try picking different activities or widening your budget.</p>`;
-  } else {
-    list.innerHTML = state.ranked.map((d, i) => {
-      const status = monthStatus(d.bestMonths);
-      return `
-        <div class="dest-card" data-idx="${i}">
-          <div class="dest-img" data-wiki="${d.wikiTitle}">
-            <span class="img-flag">${d.flag}</span>
-          </div>
-          <div class="dest-body">
-            <div class="name">${d.name}</div>
-            <div class="country">${d.country}</div>
-            <div class="meta">
-              <span class="meta-item">${BUDGET_LABELS[d.budget].icon}</span>
-              <span class="meta-item">${d.idealDays[0]}–${d.idealDays[1]} days</span>
-              <span class="meta-item season ${status}">${monthStatusLabel(status)}</span>
-              ${d.flight ? `<span class="meta-item">✈ ${d.flight}</span>` : ""}
-            </div>
-            <div class="tags">
-              ${d.matches.map(t => `<span class="tag">${labelFor(t)}</span>`).join("")}
-            </div>
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    list.querySelectorAll(".dest-img").forEach(el => applyImage(el, el.dataset.wiki, "thumb"));
-    list.querySelectorAll(".dest-card").forEach(el => {
-      el.addEventListener("click", () => {
-        const idx = parseInt(el.dataset.idx, 10);
-        showResult(state.ranked[idx]);
-      });
+  let aiDests = null;
+  try {
+    const res = await fetch(`${WORKER_URL}/destinations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        activities: [...state.selected],
+        days: state.days,
+        budget: state.budget,
+        purposes: [...state.purposes],
+        transport: state.transport,
+        origin: state.origin?.name,
+      }),
     });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.destinations) && data.destinations.length > 0) {
+        aiDests = data.destinations;
+      }
+    }
+  } catch (e) {
+    console.warn("AI destinations failed, using local ranking:", e);
   }
 
+  if (aiDests) {
+    state.ranked = enrichAIDestinations(aiDests);
+  } else {
+    state.ranked = rankDestinations();
+  }
+
+  renderRankedCards();
   $("compare-btn").disabled = state.ranked.length < 2;
+  $("surprise-btn").disabled = state.ranked.length === 0;
   renderMultiCity();
+}
+
+function enrichAIDestinations(dests) {
+  return dests.map((d) => {
+    const matches = (d.tags || []).filter((t) => state.selected.has(t));
+    let distanceKm = null;
+    let flight = null;
+    if (state.origin && typeof d.lat === "number" && typeof d.lng === "number") {
+      distanceKm = haversineKm(state.origin.lat, state.origin.lng, d.lat, d.lng);
+      flight = flightTimeApprox(distanceKm);
+    }
+    return { ...d, matches, distanceKm, flight, score: matches.length + 1 };
+  });
+}
+
+function renderRankedCards() {
+  const list = $("options-list");
+  if (state.ranked.length === 0) {
+    list.innerHTML = `<p class="sub">No matches yet — try picking different activities or widening your budget.</p>`;
+    return;
+  }
+  list.innerHTML = state.ranked.map((d, i) => {
+    const status = monthStatus(d.bestMonths);
+    return `
+      <div class="dest-card" data-idx="${i}">
+        <div class="dest-img" data-wiki="${d.wikiTitle}">
+          <span class="img-flag">${d.flag}</span>
+        </div>
+        <div class="dest-body">
+          <div class="name">${d.name}</div>
+          <div class="country">${d.country}</div>
+          <div class="meta">
+            <span class="meta-item">${BUDGET_LABELS[d.budget].icon}</span>
+            <span class="meta-item">${d.idealDays[0]}–${d.idealDays[1]} days</span>
+            <span class="meta-item season ${status}">${monthStatusLabel(status)}</span>
+            ${d.flight ? `<span class="meta-item">✈ ${d.flight}</span>` : ""}
+          </div>
+          <div class="tags">
+            ${d.matches.map(t => `<span class="tag">${labelFor(t)}</span>`).join("")}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  list.querySelectorAll(".dest-img").forEach(el => applyImage(el, el.dataset.wiki, "thumb"));
+  list.querySelectorAll(".dest-card").forEach(el => {
+    el.addEventListener("click", () => {
+      const idx = parseInt(el.dataset.idx, 10);
+      showResult(state.ranked[idx]);
+    });
+  });
 }
 
 function renderMultiCity() {
@@ -862,6 +974,7 @@ async function generateItinerary(dest) {
       content.innerHTML = window.marked ? marked.parse(buf) : buf.replace(/</g, "&lt;");
     }
 
+    state.itineraries[dest.name] = buf;
     btn.textContent = "✨ Regenerate";
   } catch (err) {
     out.innerHTML = `<div class="ai-error">Couldn't generate the itinerary: ${err.message}</div>`;
