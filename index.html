@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Where Should I Go?</title>
-  <link rel="stylesheet" href="styles.css?v=7" />
+  <link rel="stylesheet" href="styles.css?v=8" />
 </head>
 <body>
   <main id="app">
@@ -65,7 +65,7 @@
       <div class="field">
         <label class="field-label" for="origin-input">Where are you coming from?</label>
         <div class="origin-row">
-          <input type="text" id="origin-input" list="origin-list" placeholder="Start typing a city — e.g. Toronto" autocomplete="off" />
+          <input type="text" id="origin-input" list="origin-list" placeholder="Any city or region — e.g. Toronto, Bay Area, Sapporo" autocomplete="off" />
           <datalist id="origin-list"></datalist>
         </div>
         <span class="origin-status" id="origin-status">Optional — improves recommendations.</span>
@@ -96,6 +96,7 @@
       <div id="multi-city" class="multi-city"></div>
       <div class="actions">
         <button class="ghost" data-next="step-details">Back</button>
+        <button class="ghost" id="refresh-btn">↻ Fresh picks</button>
         <button class="ghost" id="compare-btn" disabled>Compare top 3</button>
         <button class="primary" id="surprise-btn">Surprise me</button>
       </div>
@@ -122,6 +123,6 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/marked@14.1.4/marked.min.js"></script>
-  <script src="script.js?v=7"></script>
+  <script src="script.js?v=8"></script>
 </body>
 </html>

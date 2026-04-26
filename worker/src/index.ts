@@ -332,11 +332,9 @@ async function handleDestinations(
 
   try {
     const message = await client.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 6000,
-      thinking: { type: "adaptive" },
+      model: "claude-haiku-4-5",
+      max_tokens: 3000,
       output_config: {
-        effort: "medium",
         format: { type: "json_schema", schema: DESTINATIONS_SCHEMA },
       },
       system: [

@@ -639,12 +639,11 @@ function setupDetails() {
       state.origin = { ...match };
       originInput.value = ORIGIN_LABEL(match);
       originStatus.textContent = `✓ Coming from ${ORIGIN_LABEL(match)}`;
-      originStatus.className = "origin-status ok";
     } else {
-      state.origin = null;
-      originStatus.textContent = "Pick a city from the list (or leave blank).";
-      originStatus.className = "origin-status warn";
+      state.origin = { name: val };
+      originStatus.textContent = `Coming from ${val}`;
     }
+    originStatus.className = "origin-status ok";
   };
   originInput.addEventListener("change", updateOrigin);
   originInput.addEventListener("blur", updateOrigin);
@@ -669,7 +668,8 @@ function rankDestinations() {
   let pool = DESTINATIONS.filter(d => d.budget <= state.budget);
   if (pool.length === 0) pool = DESTINATIONS;
 
-  if (state.origin) {
+  const haveCoords = state.origin && typeof state.origin.lat === "number" && typeof state.origin.lng === "number";
+  if (haveCoords) {
     pool = pool.filter(d => haversineKm(state.origin.lat, state.origin.lng, d.lat, d.lng) > 50);
 
     const cap = TRANSPORT[state.transport]?.maxKm ?? Infinity;
@@ -684,7 +684,7 @@ function rankDestinations() {
     let score = matches.length;
     score += purposeBonus(purposeMatchCount(d));
     let distanceKm = null, flight = null;
-    if (state.origin) {
+    if (haveCoords) {
       distanceKm = haversineKm(state.origin.lat, state.origin.lng, d.lat, d.lng);
       flight = flightTimeApprox(distanceKm);
       score -= distancePenalty(distanceKm, state.days);
@@ -717,8 +717,29 @@ function rankMultiCity() {
 }
 
 // ---------- Options page ----------
-async function renderOptions() {
+function optionsKey() {
+  return JSON.stringify({
+    picks: [...state.selected].sort(),
+    days: state.days,
+    budget: state.budget,
+    purposes: [...state.purposes].sort(),
+    transport: state.transport,
+    origin: state.origin?.name || null,
+  });
+}
+
+async function renderOptions(force = false) {
   const list = $("options-list");
+  const key = optionsKey();
+
+  if (!force && state.lastOptionsKey === key && state.ranked.length > 0) {
+    renderRankedCards();
+    $("compare-btn").disabled = state.ranked.length < 2;
+    $("surprise-btn").disabled = state.ranked.length === 0;
+    renderMultiCity();
+    return;
+  }
+
   list.innerHTML = `<div class="ai-loading">Picking 5–7 destinations for you<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>`;
   $("compare-btn").disabled = true;
   $("surprise-btn").disabled = true;
@@ -753,6 +774,7 @@ async function renderOptions() {
   } else {
     state.ranked = rankDestinations();
   }
+  state.lastOptionsKey = key;
 
   renderRankedCards();
   $("compare-btn").disabled = state.ranked.length < 2;
@@ -761,11 +783,13 @@ async function renderOptions() {
 }
 
 function enrichAIDestinations(dests) {
+  const haveOriginCoords =
+    state.origin && typeof state.origin.lat === "number" && typeof state.origin.lng === "number";
   return dests.map((d) => {
     const matches = (d.tags || []).filter((t) => state.selected.has(t));
     let distanceKm = null;
     let flight = null;
-    if (state.origin && typeof d.lat === "number" && typeof d.lng === "number") {
+    if (haveOriginCoords && typeof d.lat === "number" && typeof d.lng === "number") {
       distanceKm = haversineKm(state.origin.lat, state.origin.lng, d.lat, d.lng);
       flight = flightTimeApprox(distanceKm);
     }
@@ -1038,6 +1062,7 @@ document.querySelectorAll("[data-next]").forEach(btn => {
 $("next-to-details-btn").addEventListener("click", () => goTo("step-details"));
 $("find-btn").addEventListener("click", () => goTo("step-options"));
 $("compare-btn").addEventListener("click", () => goTo("step-compare"));
+$("refresh-btn").addEventListener("click", () => renderOptions(true));
 
 $("surprise-btn").addEventListener("click", () => {
   if (state.ranked.length === 0) return;
