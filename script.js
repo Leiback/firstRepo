@@ -228,25 +228,6 @@ const DESTINATIONS = [
     desc: "The great migration, big-five game drives, and night skies you forgot were possible. The original safari." },
 ];
 
-const MULTI_CITY_TRIPS = [
-  { id: "japan-classic", cities: ["Tokyo","Kyoto"], minDays: 8, region: "Japan",
-    pitch: "Modern Tokyo plus traditional Kyoto on the Shinkansen — Japan's greatest hits." },
-  { id: "se-asia-mix",   cities: ["Bangkok","Bali"], minDays: 10, region: "Southeast Asia",
-    pitch: "City heat and street food in Bangkok, then unwind on Bali's beaches and rice terraces." },
-  { id: "iberia",        cities: ["Lisbon","Barcelona"], minDays: 8, region: "Iberian Peninsula",
-    pitch: "Two of Europe's most underrated cities, an easy flight apart." },
-  { id: "europe-classic",cities: ["Paris","Swiss Alps"], minDays: 9, region: "Western Europe",
-    pitch: "Big-city culture in Paris paired with alpine air — a few hours apart by TGV." },
-  { id: "africa-safari", cities: ["Cape Town","Serengeti"], minDays: 12, region: "Southern + East Africa",
-    pitch: "Cape Town's vineyards and ocean drives, then onto the Serengeti's plains." },
-  { id: "south-america", cities: ["Cusco","Patagonia"], minDays: 14, region: "South America",
-    pitch: "Inca history at altitude, then granite peaks at the bottom of the world." },
-  { id: "tropics",       cities: ["Bangkok","Maldives"], minDays: 10, region: "Asia + Indian Ocean",
-    pitch: "Action and street food, then total stillness on overwater villas." },
-  { id: "iceland-london",cities: ["Reykjavík","Paris"], minDays: 9, region: "North Atlantic",
-    pitch: "Geothermal pools and waterfalls, then a Paris stopover on the way home." },
-];
-
 const FAVORITES_KEY = "travelapp:favorites";
 const IMG_CACHE_PREFIX = "travelapp:img:";
 const ITIN_PREFIX = "travelapp:itin:";
@@ -273,6 +254,9 @@ const state = {
   lastDest: null,
   itineraries: {},
   abortController: null,
+  lockedDests: new Set(),
+  viewMode: "cards",
+  multiCity: [],
 };
 
 // ---------- Itinerary persistence ----------
@@ -825,27 +809,6 @@ function rankDestinations() {
   return scored.filter(d => d.score > 0).slice(0, 5);
 }
 
-function rankMultiCity() {
-  if (state.days < 8) return [];
-  const picks = state.selected;
-  const scored = MULTI_CITY_TRIPS
-    .filter(t => state.days >= t.minDays)
-    .map(t => {
-      const cities = t.cities.map(destByName).filter(Boolean);
-      if (cities.length < 2) return null;
-      if (cities.some(c => c.budget > state.budget)) return null;
-      const tagSet = new Set(cities.flatMap(c => c.tags));
-      const matches = [...tagSet].filter(tag => picks.has(tag));
-      let score = matches.length;
-      const purposeMatch = cities.some(c => purposeMatchCount(c) > 0);
-      if (purposeMatch) score += 1;
-      return { ...t, cities, matches, score };
-    })
-    .filter(Boolean);
-  scored.sort((a, b) => b.score - a.score || Math.random() - 0.5);
-  return scored.filter(t => t.score > 0).slice(0, 3);
-}
-
 // ---------- Options page ----------
 function optionsKey() {
   return JSON.stringify({
@@ -877,44 +840,149 @@ async function renderOptions(force = false, feedback = null) {
   $("surprise-btn").disabled = true;
   $("multi-city").classList.remove("active");
 
+  // Lock-aware refresh: keep locked dests, ask AI to avoid current names
+  const lockedKept = force
+    ? state.ranked.filter(d => state.lockedDests.has(d.name))
+    : [];
+  const exclude = force && state.ranked.length
+    ? state.ranked.map(d => d.name)
+    : undefined;
+
+  const baseBody = {
+    activities: [...state.selected],
+    days: state.days,
+    budget: state.budget,
+    purposes: [...state.purposes],
+    transport: state.transport,
+    origin: state.origin?.name,
+    startDate: state.startDate || undefined,
+    group: state.group || undefined,
+  };
+
+  const destReq = fetch(`${WORKER_URL}/destinations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...baseBody, feedback: feedback || undefined, exclude }),
+  });
+
+  const multiReq = state.days >= 8
+    ? fetch(`${WORKER_URL}/multi-city`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(baseBody),
+      })
+    : Promise.resolve(null);
+
   let aiDests = null;
+  let aiTrips = [];
   try {
-    const res = await fetch(`${WORKER_URL}/destinations`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        activities: [...state.selected],
-        days: state.days,
-        budget: state.budget,
-        purposes: [...state.purposes],
-        transport: state.transport,
-        origin: state.origin?.name,
-        startDate: state.startDate || undefined,
-        group: state.group || undefined,
-        feedback: feedback || undefined,
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
+    const [destRes, multiRes] = await Promise.all([destReq, multiReq]);
+    if (destRes && destRes.ok) {
+      const data = await destRes.json();
       if (Array.isArray(data.destinations) && data.destinations.length > 0) {
         aiDests = data.destinations;
       }
     }
+    if (multiRes && multiRes.ok) {
+      const data = await multiRes.json();
+      if (Array.isArray(data.trips)) aiTrips = data.trips;
+    }
   } catch (e) {
-    console.warn("AI destinations failed, using local ranking:", e);
+    console.warn("AI fetch failed, falling back:", e);
   }
+  state.multiCity = aiTrips;
 
   if (aiDests) {
-    state.ranked = enrichAIDestinations(aiDests);
+    const fresh = enrichAIDestinations(aiDests);
+    if (lockedKept.length > 0) {
+      const freshFiltered = fresh.filter(f => !lockedKept.some(l => l.name === f.name));
+      state.ranked = [...lockedKept, ...freshFiltered].slice(0, 7);
+    } else {
+      state.ranked = fresh;
+    }
   } else {
     state.ranked = rankDestinations();
   }
   state.lastOptionsKey = key;
 
   renderRankedCards();
+  if (state.viewMode === "map") renderMap();
   $("compare-btn").disabled = state.ranked.length < 2;
   $("surprise-btn").disabled = state.ranked.length === 0;
   renderMultiCity();
+}
+
+let mapInstance = null;
+function renderMap() {
+  if (!window.L) return;
+  const container = $("options-map");
+  if (!mapInstance) {
+    mapInstance = L.map(container, { worldCopyJump: true, scrollWheelZoom: false }).setView([20, 0], 2);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+      maxZoom: 18,
+    }).addTo(mapInstance);
+    container.addEventListener("click", (e) => {
+      const link = e.target.closest("[data-idx]");
+      if (link && link.dataset.idx) {
+        e.preventDefault();
+        const idx = parseInt(link.dataset.idx, 10);
+        if (state.ranked[idx]) showResult(state.ranked[idx]);
+      }
+    });
+  } else {
+    mapInstance.eachLayer((layer) => {
+      if (layer instanceof L.Marker) mapInstance.removeLayer(layer);
+    });
+  }
+  if (!state.ranked.length) return;
+
+  const markers = [];
+  state.ranked.forEach((d, i) => {
+    if (typeof d.lat !== "number" || typeof d.lng !== "number") return;
+    const locked = state.lockedDests.has(d.name);
+    const m = L.marker([d.lat, d.lng], {
+      title: d.name,
+      opacity: locked ? 1 : 0.85,
+    }).addTo(mapInstance);
+    m.bindPopup(`
+      <div style="min-width:160px">
+        <strong style="font-size:1rem">${d.flag} ${d.name}</strong>
+        <div style="color:#666;font-size:0.85rem;margin:2px 0 8px">${d.country}${locked ? " · 🔒" : ""}</div>
+        <a href="#" data-idx="${i}" style="color:#1a6cd9;font-weight:500">View →</a>
+      </div>
+    `);
+    markers.push(m);
+  });
+
+  if (state.origin && typeof state.origin.lat === "number" && typeof state.origin.lng === "number") {
+    const o = L.marker([state.origin.lat, state.origin.lng], {
+      opacity: 0.6,
+      title: `Origin: ${state.origin.name}`,
+    }).addTo(mapInstance);
+    o.bindPopup(`<strong>📍 ${state.origin.name}</strong><br><span style="color:#666">Your starting point</span>`);
+    markers.push(o);
+  }
+
+  if (markers.length > 0) {
+    const group = L.featureGroup(markers);
+    mapInstance.fitBounds(group.getBounds().pad(0.2), { maxZoom: 6 });
+  }
+  setTimeout(() => mapInstance.invalidateSize(), 50);
+}
+
+function setViewMode(mode) {
+  state.viewMode = mode;
+  $("view-cards-btn").classList.toggle("active", mode === "cards");
+  $("view-map-btn").classList.toggle("active", mode === "map");
+  if (mode === "map") {
+    $("options-list").style.display = "none";
+    $("options-map").classList.add("active");
+    renderMap();
+  } else {
+    $("options-list").style.display = "";
+    $("options-map").classList.remove("active");
+  }
 }
 
 function enrichAIDestinations(dests) {
@@ -940,8 +1008,10 @@ function renderRankedCards() {
   }
   list.innerHTML = state.ranked.map((d, i) => {
     const status = monthStatus(d.bestMonths);
+    const locked = state.lockedDests.has(d.name);
     return `
-      <div class="dest-card" data-idx="${i}">
+      <div class="dest-card ${locked ? "locked" : ""}" data-idx="${i}">
+        <button class="lock-btn" data-name="${d.name}" title="${locked ? "Unlock — will refresh on Fresh picks" : "Lock — keep on Fresh picks"}">${locked ? "🔒" : "🔓"}</button>
         <div class="dest-img" data-wiki="${d.wikiTitle}">
           <span class="img-flag">${d.flag}</span>
         </div>
@@ -963,6 +1033,24 @@ function renderRankedCards() {
   }).join("");
 
   list.querySelectorAll(".dest-img").forEach(el => applyImage(el, el.dataset.wiki, "thumb"));
+  list.querySelectorAll(".lock-btn").forEach(el => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const name = el.dataset.name;
+      const card = el.closest(".dest-card");
+      if (state.lockedDests.has(name)) {
+        state.lockedDests.delete(name);
+        el.textContent = "🔓";
+        el.title = "Lock — keep on Fresh picks";
+        card.classList.remove("locked");
+      } else {
+        state.lockedDests.add(name);
+        el.textContent = "🔒";
+        el.title = "Unlock — will refresh on Fresh picks";
+        card.classList.add("locked");
+      }
+    });
+  });
   list.querySelectorAll(".dest-card").forEach(el => {
     el.addEventListener("click", () => {
       const idx = parseInt(el.dataset.idx, 10);
@@ -973,25 +1061,28 @@ function renderRankedCards() {
 
 function renderMultiCity() {
   const wrap = $("multi-city");
-  const trips = rankMultiCity();
+  const trips = state.multiCity || [];
   if (trips.length === 0) { wrap.innerHTML = ""; wrap.classList.remove("active"); return; }
   wrap.classList.add("active");
   wrap.innerHTML = `
     <h3>Or try a multi-city trip</h3>
     <p class="sub">You've got ${state.days} days — enough to combine destinations.</p>
     <div class="multi-list">
-      ${trips.map((t, i) => `
-        <div class="multi-card" data-idx="${i}">
-          <div class="multi-cities">
-            ${t.cities.map(c => `<span class="multi-city-name"><span class="multi-flag">${c.flag}</span>${c.name}</span>`).join('<span class="multi-arrow">→</span>')}
+      ${trips.map((t, i) => {
+        const matches = [...new Set(t.cities.flatMap(c => (c.tags || []).filter(tag => state.selected.has(tag))))];
+        return `
+          <div class="multi-card" data-idx="${i}">
+            <div class="multi-cities">
+              ${t.cities.map(c => `<span class="multi-city-name"><span class="multi-flag">${c.flag}</span>${c.name}</span>`).join('<span class="multi-arrow">→</span>')}
+            </div>
+            <div class="multi-region">${t.region}</div>
+            <p class="multi-pitch">${t.pitch}</p>
+            <div class="tags">
+              ${matches.map(tag => `<span class="tag">${labelFor(tag)}</span>`).join("")}
+            </div>
           </div>
-          <div class="multi-region">${t.region}</div>
-          <p class="multi-pitch">${t.pitch}</p>
-          <div class="tags">
-            ${t.matches.map(tag => `<span class="tag">${labelFor(tag)}</span>`).join("")}
-          </div>
-        </div>
-      `).join("")}
+        `;
+      }).join("")}
     </div>
   `;
   wrap.querySelectorAll(".multi-card").forEach(el => {
@@ -1293,6 +1384,8 @@ document.querySelectorAll("[data-next]").forEach(btn => {
 $("next-to-details-btn").addEventListener("click", () => goTo("step-details"));
 $("find-btn").addEventListener("click", () => goTo("step-options"));
 $("compare-btn").addEventListener("click", () => goTo("step-compare"));
+$("view-cards-btn").addEventListener("click", () => setViewMode("cards"));
+$("view-map-btn").addEventListener("click", () => setViewMode("map"));
 $("refresh-btn").addEventListener("click", () => {
   const panel = $("refresh-panel");
   panel.classList.add("active");

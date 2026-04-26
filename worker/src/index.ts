@@ -121,6 +121,92 @@ const DESTINATIONS_SYSTEM_PROMPT = `You are a thoughtful travel concierge. Given
 
 Return JSON only. The schema is enforced.`;
 
+const CITY_FIELDS = {
+  name: { type: "string" },
+  country: { type: "string" },
+  flag: { type: "string" },
+  wikiTitle: { type: "string" },
+  lat: { type: "number" },
+  lng: { type: "number" },
+  tags: { type: "array", items: { type: "string" } },
+  budget: { type: "integer", enum: [1, 2, 3] },
+  purposes: { type: "array", items: { type: "string" } },
+  idealDays: { type: "array", items: { type: "integer" } },
+  bestMonths: { type: "array", items: { type: "integer" } },
+  desc: { type: "string" },
+} as const;
+
+const CITY_REQUIRED = [
+  "name",
+  "country",
+  "flag",
+  "wikiTitle",
+  "lat",
+  "lng",
+  "tags",
+  "budget",
+  "purposes",
+  "idealDays",
+  "bestMonths",
+  "desc",
+] as const;
+
+const MULTI_CITY_SYSTEM_PROMPT = `You are a travel concierge. Given a traveler's preferences, suggest 2 to 3 multi-city trip pairings (2 to 3 cities each) that work as a single coherent trip.
+
+# When pairings make sense
+
+- Days >= 8 (otherwise single-destination wins)
+- Cities should be either geographically close (≤ ~5h transit between them) OR linked by a single famous route (e.g., Cape Town → Serengeti, Cusco → Machu Picchu/Sacred Valley)
+- Each pairing should tell a coherent story (city + countryside, ancient + modern, coast + interior)
+
+# Style
+
+- Lean toward less-predictable combinations on most calls. Don't always default to global classics. Surface meaningful combos that fit just as well — e.g., Lisbon + Azores, Mexico City + Oaxaca, Hanoi + Ha Long Bay over the same Tokyo + Kyoto every time.
+- Each city must individually fit the user's budget tier
+- Cities must be reachable via the user's chosen transport mode (drive caps at ~1500km between cities; train at ~2500km; local at ~300km)
+- Avoid the user's origin city
+- Match the user's purposes — every pairing must work for at least one chosen purpose
+
+# Output
+
+JSON only — schema enforced. Each trip:
+- id: slug like "japan-classic" or "iberia-coast"
+- region: human-readable region label (e.g., "Japan", "Iberian Peninsula")
+- pitch: 1-2 specific, evocative sentences on why these cities pair well together
+- cities: 2-3 city objects, each with the same fields as single destinations
+
+If days < 8 or no compelling pairings exist, return an empty trips array.`;
+
+const MULTI_CITY_SCHEMA = {
+  type: "object",
+  properties: {
+    trips: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          region: { type: "string" },
+          pitch: { type: "string" },
+          cities: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { ...CITY_FIELDS },
+              required: [...CITY_REQUIRED],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["id", "region", "pitch", "cities"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["trips"],
+  additionalProperties: false,
+} as const;
+
 const DESTINATIONS_SCHEMA = {
   type: "object",
   properties: {
@@ -191,6 +277,7 @@ interface DestinationsRequest {
   startDate?: string;
   group?: string;
   feedback?: string;
+  exclude?: string[];
 }
 
 const GROUP_LABELS: Record<string, string> = {
@@ -262,6 +349,9 @@ function buildDestinationsUserPrompt(req: DestinationsRequest): string {
   }
   if (req.group && GROUP_LABELS[req.group]) {
     lines.push(`Group: ${GROUP_LABELS[req.group]}.`);
+  }
+  if (req.exclude && req.exclude.length) {
+    lines.push(`Avoid these destinations (already shown to the traveler — they want different options): ${req.exclude.join(", ")}.`);
   }
   lines.push(`Suggest 5 to 7 destinations.`);
   if (req.feedback && req.feedback.trim()) {
@@ -433,6 +523,92 @@ Apply this refinement and emit the full revised itinerary.`;
   });
 }
 
+function buildMultiCityUserPrompt(req: DestinationsRequest): string {
+  const lines: string[] = [];
+  if (req.activities?.length) {
+    lines.push(`Activities: ${req.activities.map((a) => ACTIVITY_LABELS[a] ?? a).join(", ")}.`);
+  }
+  if (req.days) lines.push(`Days: ${req.days}.`);
+  if (req.budget && BUDGET_LABELS[req.budget]) {
+    lines.push(`Budget: ${BUDGET_LABELS[req.budget]}.`);
+  }
+  if (req.purposes && req.purposes.length) {
+    lines.push(`Purpose: ${req.purposes.map((p) => PURPOSE_LABELS[p] ?? p).join(" + ")}.`);
+  }
+  if (req.transport && req.transport !== "any") {
+    lines.push(`Transport: ${TRANSPORT_LABELS[req.transport] ?? req.transport}.`);
+  }
+  if (req.origin) lines.push(`Origin: ${req.origin}.`);
+  if (req.startDate && req.days) {
+    lines.push(`Dates: ${dateRangeText(req.startDate, req.days)}.`);
+  }
+  if (req.group && GROUP_LABELS[req.group]) {
+    lines.push(`Group: ${GROUP_LABELS[req.group]}.`);
+  }
+  lines.push(`Suggest 2 to 3 multi-city pairings.`);
+  return lines.join("\n");
+}
+
+async function handleMultiCity(
+  request: Request,
+  env: Env,
+  cors: Record<string, string>,
+): Promise<Response> {
+  let body: DestinationsRequest;
+  try {
+    body = (await request.json()) as DestinationsRequest;
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+      status: 400,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+  if (!body.days || body.days < 8) {
+    return new Response(JSON.stringify({ trips: [] }), {
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+
+  const userPrompt = buildMultiCityUserPrompt(body);
+  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+
+  try {
+    const message = await client.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 4000,
+      output_config: {
+        format: { type: "json_schema", schema: MULTI_CITY_SCHEMA },
+      },
+      system: [
+        {
+          type: "text",
+          text: MULTI_CITY_SYSTEM_PROMPT,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+      messages: [{ role: "user", content: userPrompt }],
+    });
+    const textBlock = message.content.find((b) => b.type === "text") as
+      | { type: "text"; text: string }
+      | undefined;
+    if (!textBlock) {
+      return new Response(JSON.stringify({ trips: [] }), {
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+    const data = JSON.parse(textBlock.text);
+    return new Response(JSON.stringify(data), {
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "unknown";
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+}
+
 async function handleDestinations(
   request: Request,
   env: Env,
@@ -513,6 +689,9 @@ export default {
     }
     if (url.pathname === "/destinations") {
       return handleDestinations(request, env, cors);
+    }
+    if (url.pathname === "/multi-city") {
+      return handleMultiCity(request, env, cors);
     }
 
     return new Response("Not found", { status: 404, headers: cors });
