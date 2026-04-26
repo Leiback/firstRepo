@@ -259,6 +259,26 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 }
 .days-unit { color: var(--muted); }
 
+.date-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.date-input {
+  padding: 10px 12px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--card-hover);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  color-scheme: dark;
+}
+.date-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.date-end {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .chips {
   display: flex;
   gap: 10px;

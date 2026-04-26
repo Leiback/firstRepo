@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Where Should I Go?</title>
-  <link rel="stylesheet" href="styles.css?v=9" />
+  <link rel="stylesheet" href="styles.css?v=10" />
 </head>
 <body>
   <main id="app">
@@ -42,6 +42,14 @@
       </div>
 
       <div class="field">
+        <label class="field-label" for="start-date">When? <span class="field-hint">(optional — helps with season-aware picks)</span></label>
+        <div class="date-row">
+          <input type="date" id="start-date" class="date-input" />
+          <span class="date-end" id="date-end"></span>
+        </div>
+      </div>
+
+      <div class="field">
         <label class="field-label">Budget</label>
         <div class="chips" id="budget-chips">
           <button type="button" class="chip" data-budget="1"><span class="chip-icon">💲</span><span class="chip-label">Budget</span></button>
@@ -51,14 +59,24 @@
       </div>
 
       <div class="field">
-        <label class="field-label">Purpose of the trip <span class="field-hint">(pick one or more)</span></label>
+        <label class="field-label">Purpose of the trip <span class="field-hint">(optional — pick any)</span></label>
         <div class="chips chips-grid" id="purpose-chips">
-          <button type="button" class="chip selected" data-purpose="fun"><span class="chip-icon">🎉</span><span class="chip-label">Fun with friends</span></button>
+          <button type="button" class="chip" data-purpose="fun"><span class="chip-icon">🎉</span><span class="chip-label">Fun with friends</span></button>
           <button type="button" class="chip" data-purpose="family"><span class="chip-icon">👨‍👩‍👧</span><span class="chip-label">Family gathering</span></button>
           <button type="button" class="chip" data-purpose="romantic"><span class="chip-icon">💞</span><span class="chip-label">Romantic getaway</span></button>
           <button type="button" class="chip" data-purpose="solo"><span class="chip-icon">🎒</span><span class="chip-label">Solo trip</span></button>
           <button type="button" class="chip" data-purpose="business"><span class="chip-icon">💼</span><span class="chip-label">Business</span></button>
           <button type="button" class="chip" data-purpose="other"><span class="chip-icon">✨</span><span class="chip-label">Other</span></button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Who's going? <span class="field-hint">(optional)</span></label>
+        <div class="chips" id="group-chips">
+          <button type="button" class="chip" data-group="solo"><span class="chip-icon">🎒</span><span class="chip-label">Solo</span></button>
+          <button type="button" class="chip" data-group="couple"><span class="chip-icon">💑</span><span class="chip-label">Couple</span></button>
+          <button type="button" class="chip" data-group="family"><span class="chip-icon">👨‍👩‍👧</span><span class="chip-label">Family</span></button>
+          <button type="button" class="chip" data-group="friends"><span class="chip-icon">👯</span><span class="chip-label">Friends</span></button>
         </div>
       </div>
 
@@ -131,6 +149,6 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/marked@14.1.4/marked.min.js"></script>
-  <script src="script.js?v=9"></script>
+  <script src="script.js?v=10"></script>
 </body>
 </html>

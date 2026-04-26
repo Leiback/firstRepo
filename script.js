@@ -26,6 +26,13 @@ const PURPOSES = {
   other:    { label: "Other",             icon: "✨" },
 };
 
+const GROUPS = {
+  solo:    { label: "Solo",    icon: "🎒" },
+  couple:  { label: "Couple",  icon: "💑" },
+  family:  { label: "Family",  icon: "👨‍👩‍👧" },
+  friends: { label: "Friends", icon: "👯" },
+};
+
 const BUDGET_LABELS = {
   1: { label: "Budget",     icon: "💲" },
   2: { label: "Mid-range",  icon: "💲💲" },
@@ -256,9 +263,11 @@ const state = {
   selected: new Set(),
   days: 7,
   budget: 2,
-  purposes: new Set(["fun"]),
+  purposes: new Set(),
   transport: "any",
   origin: null,
+  startDate: null,
+  group: null,
   ranked: [],
   lastDest: null,
   itineraries: {},
@@ -350,9 +359,50 @@ function applyImage(el, wikiTitle, kind = "thumb") {
   });
 }
 
+// ---------- Dates ----------
+function endDateFromStart(startISO, days) {
+  if (!startISO || !days) return null;
+  const d = new Date(startISO + "T00:00:00");
+  d.setDate(d.getDate() + days - 1);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatDateRange(startISO, days) {
+  if (!startISO) return "";
+  const start = new Date(startISO + "T00:00:00");
+  const end = new Date(startISO + "T00:00:00");
+  end.setDate(end.getDate() + days - 1);
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  const opts = { month: "short", day: "numeric" };
+  const s = start.toLocaleDateString(undefined, opts);
+  const e = sameMonth
+    ? end.getDate()
+    : end.toLocaleDateString(undefined, opts);
+  const yr = start.getFullYear() !== new Date().getFullYear() ? `, ${start.getFullYear()}` : "";
+  return `${s} – ${e}${yr}`;
+}
+
+function updateEndDateLabel() {
+  const el = $("date-end");
+  if (!el) return;
+  if (state.startDate) {
+    el.textContent = `→ ${formatDateRange(state.startDate, state.days)}`;
+  } else {
+    el.textContent = "";
+  }
+}
+
 // ---------- Best-time-to-visit ----------
 function monthStatus(bestMonths) {
-  const m = new Date().getMonth() + 1;
+  let m;
+  if (state.startDate) {
+    m = parseInt(state.startDate.split("-")[1], 10);
+  } else {
+    m = new Date().getMonth() + 1;
+  }
   if (bestMonths.includes(m)) return "peak";
   const prev = m === 1 ? 12 : m - 1;
   const next = m === 12 ? 1 : m + 1;
@@ -361,7 +411,8 @@ function monthStatus(bestMonths) {
 }
 
 function monthStatusLabel(status) {
-  return { peak: "In season now", shoulder: "Shoulder season", off: "Off-season" }[status];
+  const when = state.startDate ? "for your dates" : "now";
+  return { peak: `In season ${when}`, shoulder: "Shoulder season", off: "Off-season" }[status];
 }
 
 function bestMonthsRange(months) {
@@ -427,6 +478,8 @@ async function encodeStateToURL(destName) {
   params.set("purposes", [...state.purposes].join(","));
   params.set("transport", state.transport);
   if (state.origin) params.set("origin", state.origin.name);
+  if (state.startDate) params.set("start", state.startDate);
+  if (state.group) params.set("group", state.group);
   if (destName) params.set("dest", destName);
   if (destName && state.itineraries[destName]) {
     try {
@@ -446,9 +499,11 @@ function applyURLState() {
   const purposesParam = params.get("purposes") || params.get("purpose");
   const transportParam = params.get("transport");
   const originName = params.get("origin");
+  const startDateParam = params.get("start");
+  const groupParam = params.get("group");
   const dest = params.get("dest");
   const itinB64 = params.get("itin");
-  if (!picks.length && !days && !budget && !purposesParam && !transportParam && !originName && !dest && !itinB64) return false;
+  if (!picks.length && !days && !budget && !purposesParam && !transportParam && !originName && !startDateParam && !groupParam && !dest && !itinB64) return false;
 
   picks.forEach(p => state.selected.add(p));
   document.querySelectorAll("#activity-grid .activity").forEach(el => {
@@ -479,9 +534,21 @@ function applyURLState() {
     if (c) {
       state.origin = { ...c };
       $("origin-input").value = ORIGIN_LABEL(c);
-      const status = $("origin-status");
-      if (status) { status.textContent = `✓ Coming from ${ORIGIN_LABEL(c)}`; status.className = "origin-status ok"; }
+    } else {
+      state.origin = { name: originName };
+      $("origin-input").value = originName;
     }
+    const status = $("origin-status");
+    if (status) { status.textContent = `Coming from ${state.origin.name}`; status.className = "origin-status ok"; }
+  }
+  if (startDateParam) {
+    state.startDate = startDateParam;
+    $("start-date").value = startDateParam;
+    updateEndDateLabel();
+  }
+  if (groupParam && GROUPS[groupParam]) {
+    state.group = groupParam;
+    $("group-chips").querySelectorAll(".chip").forEach(c => c.classList.toggle("selected", c.dataset.group === groupParam));
   }
   if (dest) {
     let d = destByName(dest);
@@ -586,9 +653,16 @@ function setupDetails() {
     state.days = n;
     input.value = n;
     if (n <= parseInt(slider.max, 10)) slider.value = n;
+    updateEndDateLabel();
   };
   slider.addEventListener("input", (e) => sync(e.target.value));
   input.addEventListener("input", (e) => sync(e.target.value));
+
+  const dateInput = $("start-date");
+  dateInput.addEventListener("input", () => {
+    state.startDate = dateInput.value || null;
+    updateEndDateLabel();
+  });
 
   $("budget-chips").querySelectorAll(".chip").forEach(chip => {
     chip.addEventListener("click", () => {
@@ -602,10 +676,8 @@ function setupDetails() {
     chip.addEventListener("click", () => {
       const id = chip.dataset.purpose;
       if (state.purposes.has(id)) {
-        if (state.purposes.size > 1) {
-          state.purposes.delete(id);
-          chip.classList.remove("selected");
-        }
+        state.purposes.delete(id);
+        chip.classList.remove("selected");
       } else {
         state.purposes.add(id);
         chip.classList.add("selected");
@@ -618,6 +690,20 @@ function setupDetails() {
       $("transport-chips").querySelectorAll(".chip").forEach(c => c.classList.remove("selected"));
       chip.classList.add("selected");
       state.transport = chip.dataset.transport;
+    });
+  });
+
+  $("group-chips").querySelectorAll(".chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      const id = chip.dataset.group;
+      const wasSelected = chip.classList.contains("selected");
+      $("group-chips").querySelectorAll(".chip").forEach(c => c.classList.remove("selected"));
+      if (wasSelected) {
+        state.group = null;
+      } else {
+        chip.classList.add("selected");
+        state.group = id;
+      }
     });
   });
 
@@ -725,6 +811,8 @@ function optionsKey() {
     purposes: [...state.purposes].sort(),
     transport: state.transport,
     origin: state.origin?.name || null,
+    startDate: state.startDate,
+    group: state.group,
   });
 }
 
@@ -757,6 +845,8 @@ async function renderOptions(force = false, feedback = null) {
         purposes: [...state.purposes],
         transport: state.transport,
         origin: state.origin?.name,
+        startDate: state.startDate || undefined,
+        group: state.group || undefined,
         feedback: feedback || undefined,
       }),
     });
@@ -924,7 +1014,9 @@ function showResult(dest) {
     <div class="trip-summary">
       <div class="summary-item"><span class="summary-icon">📅</span><span>${state.days} day${state.days === 1 ? "" : "s"}</span></div>
       <div class="summary-item"><span class="summary-icon">${budget.icon}</span><span>${budget.label}</span></div>
-      <div class="summary-item"><span class="summary-icon">${purposeList.map(p => PURPOSES[p].icon).join("")}</span><span>${purposeList.map(p => PURPOSES[p].label).join(", ")}</span></div>
+      ${purposeList.length ? `<div class="summary-item"><span class="summary-icon">${purposeList.map(p => PURPOSES[p].icon).join("")}</span><span>${purposeList.map(p => PURPOSES[p].label).join(", ")}</span></div>` : ""}
+      ${state.group ? `<div class="summary-item"><span class="summary-icon">${GROUPS[state.group].icon}</span><span>${GROUPS[state.group].label}</span></div>` : ""}
+      ${state.startDate ? `<div class="summary-item"><span class="summary-icon">🗓️</span><span>${formatDateRange(state.startDate, state.days)}</span></div>` : ""}
       ${state.transport !== "any" ? `<div class="summary-item"><span class="summary-icon">${transport.icon}</span><span>${transport.label}</span></div>` : ""}
       ${state.origin && dest.flight ? `<div class="summary-item"><span class="summary-icon">📍</span><span>${dest.flight} from ${state.origin.name}</span></div>` : ""}
     </div>
@@ -977,6 +1069,8 @@ async function generateItinerary(dest) {
         purposes: [...state.purposes],
         transport: state.transport,
         origin: state.origin?.name,
+        startDate: state.startDate || undefined,
+        group: state.group || undefined,
       }),
     });
 
@@ -1025,7 +1119,7 @@ function showMultiCityResult(trip) {
 
     <div class="trip-summary">
       <div class="summary-item"><span class="summary-icon">📅</span><span>${state.days} days (~${perCity} per city)</span></div>
-      <div class="summary-item"><span class="summary-icon">${purposeList.map(p => PURPOSES[p].icon).join("")}</span><span>${purposeList.map(p => PURPOSES[p].label).join(", ")}</span></div>
+      ${purposeList.length ? `<div class="summary-item"><span class="summary-icon">${purposeList.map(p => PURPOSES[p].icon).join("")}</span><span>${purposeList.map(p => PURPOSES[p].label).join(", ")}</span></div>` : ""}
     </div>
 
     <div class="why"><strong>Why this combo:</strong> ${allMatches.length ? `together hits ${allMatches.map(labelFor).join(", ")}` : "the cities pair naturally and split the days nicely"}.</div>

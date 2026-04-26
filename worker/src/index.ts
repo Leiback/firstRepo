@@ -172,6 +172,8 @@ interface ItineraryRequest {
   purposes?: string[];
   transport?: string;
   origin?: string;
+  startDate?: string;
+  group?: string;
 }
 
 interface DestinationsRequest {
@@ -181,7 +183,25 @@ interface DestinationsRequest {
   purposes?: string[];
   transport?: string;
   origin?: string;
+  startDate?: string;
+  group?: string;
   feedback?: string;
+}
+
+const GROUP_LABELS: Record<string, string> = {
+  solo: "solo traveler",
+  couple: "couple",
+  family: "family with kids",
+  friends: "group of friends",
+};
+
+function dateRangeText(startDate: string, days: number): string {
+  const start = new Date(startDate + "T00:00:00");
+  const end = new Date(startDate + "T00:00:00");
+  end.setDate(end.getDate() + days - 1);
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  return `${fmt(start)} to ${fmt(end)}`;
 }
 
 function buildItineraryUserPrompt(req: ItineraryRequest): string {
@@ -189,6 +209,9 @@ function buildItineraryUserPrompt(req: ItineraryRequest): string {
   lines.push(
     `Plan a ${req.days}-day trip to ${req.destination}${req.country ? ", " + req.country : ""}.`,
   );
+  if (req.startDate && req.days) {
+    lines.push(`Dates: ${dateRangeText(req.startDate, req.days)}. Use these actual dates in the day headings (e.g., "## Day 1 — Tue Jul 15: <subtitle>") and adapt for the season, weather, and any major holidays/events on those dates.`);
+  }
   if (req.origin) lines.push(`Starting from: ${req.origin}.`);
   if (req.transport && req.transport !== "any") {
     lines.push(`Travel mode: ${TRANSPORT_LABELS[req.transport] ?? req.transport}.`);
@@ -196,6 +219,9 @@ function buildItineraryUserPrompt(req: ItineraryRequest): string {
   if (req.purposes && req.purposes.length) {
     const labels = req.purposes.map((p) => PURPOSE_LABELS[p] ?? p);
     lines.push(`Trip purpose: ${labels.join(" + ")}.`);
+  }
+  if (req.group && GROUP_LABELS[req.group]) {
+    lines.push(`Group: ${GROUP_LABELS[req.group]}. Tailor activities and dining to suit this group composition (e.g., kid-friendly venues for family, group-bookable restaurants for friends, walkable + flexible for solo).`);
   }
   if (req.budget && BUDGET_LABELS[req.budget]) {
     lines.push(`Budget tier: ${BUDGET_LABELS[req.budget]}.`);
@@ -226,6 +252,12 @@ function buildDestinationsUserPrompt(req: DestinationsRequest): string {
     lines.push(`Transport: ${TRANSPORT_LABELS[req.transport] ?? req.transport}.`);
   }
   if (req.origin) lines.push(`Origin: ${req.origin}.`);
+  if (req.startDate && req.days) {
+    lines.push(`Dates: ${dateRangeText(req.startDate, req.days)}. Use this for season-aware picks — only suggest places that are genuinely good in the given month(s).`);
+  }
+  if (req.group && GROUP_LABELS[req.group]) {
+    lines.push(`Group: ${GROUP_LABELS[req.group]}.`);
+  }
   lines.push(`Suggest 5 to 7 destinations.`);
   if (req.feedback && req.feedback.trim()) {
     lines.push(
