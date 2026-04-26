@@ -266,6 +266,7 @@ interface ItineraryRequest {
 interface RefineRequest extends ItineraryRequest {
   currentItinerary?: string;
   instruction?: string;
+  // mode is inherited from ItineraryRequest
 }
 
 interface DestinationsRequest {
@@ -480,7 +481,13 @@ const REFINE_SYSTEM_PROMPT = ITINERARY_SYSTEM_PROMPT + `
 
 # Refinement mode
 
-You are revising an existing itinerary. Apply the user's refinement and emit the FULL revised itinerary in the same format. Keep what they liked, change what they asked you to change. Don't add commentary about what you changed — just emit the new itinerary, ready to read.`;
+You are revising an existing detailed itinerary. Apply the user's refinement and emit the FULL revised itinerary in the same detailed format. Keep what they liked, change what they asked you to change. Don't add commentary about what you changed — just emit the new itinerary, ready to read.`;
+
+const PREVIEW_REFINE_SYSTEM_PROMPT = PREVIEW_SYSTEM_PROMPT + `
+
+# Refinement mode
+
+You are revising an existing short preview. Apply the user's refinement and emit the revised preview in the same SHORT format (2-3 sentence overview + one-line-per-day list, under ~150 words). Do NOT expand it into a detailed day-by-day plan — that's a separate step. Keep the structure they're seeing, just adjust it per their note. No commentary about what you changed.`;
 
 async function handleRefine(
   request: Request,
@@ -515,16 +522,26 @@ Refinement requested: "${body.instruction}"
 Apply this refinement and emit the full revised itinerary.`;
 
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-  const stream = client.messages.stream({
-    model: "claude-sonnet-4-6",
-    max_tokens: 12000,
-    thinking: { type: "disabled" },
-    output_config: { effort: "low" },
-    system: [
-      { type: "text", text: REFINE_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
-    ],
-    messages: [{ role: "user", content: userPrompt }],
-  });
+  const isPreview = body.mode === "preview";
+  const stream = isPreview
+    ? client.messages.stream({
+        model: "claude-haiku-4-5",
+        max_tokens: 1500,
+        system: [
+          { type: "text", text: PREVIEW_REFINE_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+        ],
+        messages: [{ role: "user", content: userPrompt }],
+      })
+    : client.messages.stream({
+        model: "claude-sonnet-4-6",
+        max_tokens: 12000,
+        thinking: { type: "disabled" },
+        output_config: { effort: "low" },
+        system: [
+          { type: "text", text: REFINE_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+        ],
+        messages: [{ role: "user", content: userPrompt }],
+      });
 
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer = writable.getWriter();

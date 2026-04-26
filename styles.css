@@ -749,6 +749,13 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
   margin: 1.2em 0;
 }
 
+.ai-action-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+.ai-action-row button { min-width: 220px; }
+
 .ai-upgrade {
   display: flex;
   gap: 14px;

@@ -1172,7 +1172,6 @@ function showResult(dest) {
     <div class="result-actions">
       <button class="ghost fav-btn ${fav ? "active" : ""}" id="fav-btn">${fav ? "★ Saved" : "☆ Save"}</button>
       <button class="ghost" id="share-btn">🔗 Copy share link</button>
-      <button class="primary" id="ai-btn">✨ Generate AI itinerary</button>
       <button class="ghost" id="download-btn" style="display:none">⬇ Download</button>
     </div>
     <div id="ai-output" class="ai-output">
@@ -1185,6 +1184,9 @@ function showResult(dest) {
         <input type="text" id="refine-input" placeholder="Want changes? e.g., 'shorter mornings', 'add a cooking class on day 3', 'fewer museums'" />
         <button class="ghost" id="refine-btn">Refine</button>
       </div>
+    </div>
+    <div class="ai-action-row">
+      <button class="primary" id="ai-btn">✨ Generate AI itinerary</button>
     </div>
   `;
   applyImage($("result-card").querySelector(".result-hero"), dest.wikiTitle, "full");
@@ -1341,7 +1343,8 @@ async function generateItinerary(dest, mode = "preview") {
 async function refineItinerary(dest, instruction) {
   const current = loadItinerary(dest.name) || state.itineraries[dest.name];
   if (!current) return;
-  // Refining always returns a full plan (Sonnet via /refine).
+  // Refine in whatever mode is currently displayed — preview stays short, full stays detailed.
+  const mode = state.itineraryMode || "full";
   return streamMarkdownToContent(
     `${WORKER_URL}/refine`,
     {
@@ -1356,10 +1359,11 @@ async function refineItinerary(dest, instruction) {
       group: state.group || undefined,
       currentItinerary: current,
       instruction,
+      mode,
     },
     dest,
     $("ai-btn"),
-    { mode: "full" },
+    { mode },
   );
 }
 
