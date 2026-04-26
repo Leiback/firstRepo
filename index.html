@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Where Should I Go?</title>
-  <link rel="stylesheet" href="styles.css?v=2" />
+  <link rel="stylesheet" href="styles.css?v=3" />
 </head>
 <body>
   <main id="app">
@@ -13,6 +13,7 @@
       <h1>Where should I go?</h1>
       <p class="sub">Tell me what you like to do — I'll find a place.</p>
       <button class="primary" data-next="step-activities">Get started</button>
+      <div id="favorites" class="favorites"></div>
     </section>
 
     <!-- Step 2: pick activities -->
@@ -72,9 +73,21 @@
       <h2>Top matches</h2>
       <p class="sub">Pick one — or let me decide.</p>
       <div class="cards" id="options-list"></div>
+      <div id="multi-city" class="multi-city"></div>
       <div class="actions">
         <button class="ghost" data-next="step-details">Back</button>
+        <button class="ghost" id="compare-btn" disabled>Compare top 3</button>
         <button class="primary" id="surprise-btn">Surprise me</button>
+      </div>
+    </section>
+
+    <!-- Step 4b: side-by-side comparison -->
+    <section class="step" id="step-compare">
+      <h2>Side-by-side</h2>
+      <p class="sub">Your top picks, lined up.</p>
+      <div id="compare-grid" class="compare-grid"></div>
+      <div class="actions">
+        <button class="ghost" data-next="step-options">Back to options</button>
       </div>
     </section>
 
@@ -88,6 +101,6 @@
     </section>
   </main>
 
-  <script src="script.js?v=2"></script>
+  <script src="script.js?v=3"></script>
 </body>
 </html>
