@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Where Should I Go?</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main id="app">
+    <!-- Step 1: intro -->
+    <section class="step active" id="step-intro">
+      <h1>Where should I go?</h1>
+      <p class="sub">Tell me what you like to do — I'll find a place.</p>
+      <button class="primary" data-next="step-activities">Get started</button>
+    </section>
+
+    <!-- Step 2: pick activities -->
+    <section class="step" id="step-activities">
+      <h2>What do you love to do?</h2>
+      <p class="sub">Pick as many as you want.</p>
+      <div class="grid" id="activity-grid"></div>
+      <div class="actions">
+        <button class="ghost" data-next="step-intro">Back</button>
+        <button class="primary" id="find-btn" disabled>Show me options</button>
+      </div>
+    </section>
+
+    <!-- Step 3: pick from matches -->
+    <section class="step" id="step-options">
+      <h2>Top matches</h2>
+      <p class="sub">Pick one — or let me decide.</p>
+      <div class="cards" id="options-list"></div>
+      <div class="actions">
+        <button class="ghost" data-next="step-activities">Back</button>
+        <button class="primary" id="surprise-btn">Surprise me</button>
+      </div>
+    </section>
+
+    <!-- Step 4: final result -->
+    <section class="step" id="step-result">
+      <div id="result-card"></div>
+      <div class="actions">
+        <button class="ghost" data-next="step-options">See other matches</button>
+        <button class="primary" data-next="step-activities">Start over</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
