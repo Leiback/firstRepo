@@ -34,103 +34,187 @@ const BUDGET_LABELS = {
 
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
+const ORIGIN_CITIES = [
+  { name: "New York",      country: "USA",         lat: 40.71,  lng:  -74.00 },
+  { name: "Los Angeles",   country: "USA",         lat: 34.05,  lng: -118.24 },
+  { name: "Chicago",       country: "USA",         lat: 41.88,  lng:  -87.63 },
+  { name: "San Francisco", country: "USA",         lat: 37.77,  lng: -122.42 },
+  { name: "Seattle",       country: "USA",         lat: 47.61,  lng: -122.33 },
+  { name: "Boston",        country: "USA",         lat: 42.36,  lng:  -71.06 },
+  { name: "Washington DC", country: "USA",         lat: 38.91,  lng:  -77.04 },
+  { name: "Atlanta",       country: "USA",         lat: 33.75,  lng:  -84.39 },
+  { name: "Dallas",        country: "USA",         lat: 32.78,  lng:  -96.80 },
+  { name: "Houston",       country: "USA",         lat: 29.76,  lng:  -95.37 },
+  { name: "Miami",         country: "USA",         lat: 25.76,  lng:  -80.19 },
+  { name: "Toronto",       country: "Canada",      lat: 43.65,  lng:  -79.38 },
+  { name: "Vancouver",     country: "Canada",      lat: 49.28,  lng: -123.12 },
+  { name: "Montreal",      country: "Canada",      lat: 45.50,  lng:  -73.57 },
+  { name: "Mexico City",   country: "Mexico",      lat: 19.43,  lng:  -99.13 },
+  { name: "São Paulo",     country: "Brazil",      lat: -23.55, lng:  -46.63 },
+  { name: "Rio de Janeiro",country: "Brazil",      lat: -22.91, lng:  -43.17 },
+  { name: "Buenos Aires",  country: "Argentina",   lat: -34.60, lng:  -58.45 },
+  { name: "Lima",          country: "Peru",        lat: -12.05, lng:  -77.04 },
+  { name: "Bogotá",        country: "Colombia",    lat:   4.71, lng:  -74.07 },
+  { name: "Santiago",      country: "Chile",       lat: -33.45, lng:  -70.66 },
+  { name: "London",        country: "UK",          lat: 51.51,  lng:   -0.13 },
+  { name: "Paris",         country: "France",      lat: 48.85,  lng:    2.35 },
+  { name: "Berlin",        country: "Germany",     lat: 52.52,  lng:   13.41 },
+  { name: "Munich",        country: "Germany",     lat: 48.14,  lng:   11.58 },
+  { name: "Madrid",        country: "Spain",       lat: 40.42,  lng:   -3.70 },
+  { name: "Barcelona",     country: "Spain",       lat: 41.39,  lng:    2.17 },
+  { name: "Rome",          country: "Italy",       lat: 41.90,  lng:   12.50 },
+  { name: "Milan",         country: "Italy",       lat: 45.46,  lng:    9.19 },
+  { name: "Amsterdam",     country: "Netherlands", lat: 52.37,  lng:    4.89 },
+  { name: "Brussels",      country: "Belgium",     lat: 50.85,  lng:    4.35 },
+  { name: "Lisbon",        country: "Portugal",    lat: 38.72,  lng:   -9.14 },
+  { name: "Vienna",        country: "Austria",     lat: 48.21,  lng:   16.37 },
+  { name: "Zurich",        country: "Switzerland", lat: 47.38,  lng:    8.54 },
+  { name: "Prague",        country: "Czechia",     lat: 50.08,  lng:   14.44 },
+  { name: "Warsaw",        country: "Poland",      lat: 52.23,  lng:   21.01 },
+  { name: "Budapest",      country: "Hungary",     lat: 47.50,  lng:   19.04 },
+  { name: "Athens",        country: "Greece",      lat: 37.98,  lng:   23.73 },
+  { name: "Stockholm",     country: "Sweden",      lat: 59.33,  lng:   18.07 },
+  { name: "Oslo",          country: "Norway",      lat: 59.91,  lng:   10.75 },
+  { name: "Copenhagen",    country: "Denmark",     lat: 55.68,  lng:   12.57 },
+  { name: "Helsinki",      country: "Finland",     lat: 60.17,  lng:   24.94 },
+  { name: "Dublin",        country: "Ireland",     lat: 53.35,  lng:   -6.26 },
+  { name: "Edinburgh",     country: "UK",          lat: 55.95,  lng:   -3.19 },
+  { name: "Istanbul",      country: "Turkey",      lat: 41.01,  lng:   28.98 },
+  { name: "Moscow",        country: "Russia",      lat: 55.76,  lng:   37.62 },
+  { name: "Cairo",         country: "Egypt",       lat: 30.04,  lng:   31.24 },
+  { name: "Casablanca",    country: "Morocco",     lat: 33.57,  lng:   -7.59 },
+  { name: "Lagos",         country: "Nigeria",     lat:  6.52,  lng:    3.38 },
+  { name: "Nairobi",       country: "Kenya",       lat: -1.29,  lng:   36.82 },
+  { name: "Johannesburg",  country: "South Africa",lat: -26.20, lng:   28.04 },
+  { name: "Cape Town",     country: "South Africa",lat: -33.92, lng:   18.42 },
+  { name: "Dubai",         country: "UAE",         lat: 25.20,  lng:   55.27 },
+  { name: "Doha",          country: "Qatar",       lat: 25.29,  lng:   51.53 },
+  { name: "Riyadh",        country: "Saudi Arabia",lat: 24.71,  lng:   46.68 },
+  { name: "Tel Aviv",      country: "Israel",      lat: 32.08,  lng:   34.78 },
+  { name: "Mumbai",        country: "India",       lat: 19.08,  lng:   72.88 },
+  { name: "Delhi",         country: "India",       lat: 28.61,  lng:   77.21 },
+  { name: "Bangalore",     country: "India",       lat: 12.97,  lng:   77.59 },
+  { name: "Karachi",       country: "Pakistan",    lat: 24.86,  lng:   67.01 },
+  { name: "Dhaka",         country: "Bangladesh",  lat: 23.81,  lng:   90.41 },
+  { name: "Bangkok",       country: "Thailand",    lat: 13.75,  lng:  100.50 },
+  { name: "Singapore",     country: "Singapore",   lat:  1.35,  lng:  103.82 },
+  { name: "Kuala Lumpur",  country: "Malaysia",    lat:  3.14,  lng:  101.69 },
+  { name: "Jakarta",       country: "Indonesia",   lat: -6.21,  lng:  106.85 },
+  { name: "Manila",        country: "Philippines", lat: 14.60,  lng:  120.98 },
+  { name: "Hanoi",         country: "Vietnam",     lat: 21.03,  lng:  105.85 },
+  { name: "Ho Chi Minh City", country: "Vietnam",  lat: 10.82,  lng:  106.63 },
+  { name: "Hong Kong",     country: "Hong Kong",   lat: 22.32,  lng:  114.17 },
+  { name: "Shanghai",      country: "China",       lat: 31.23,  lng:  121.47 },
+  { name: "Beijing",       country: "China",       lat: 39.90,  lng:  116.41 },
+  { name: "Seoul",         country: "South Korea", lat: 37.57,  lng:  126.98 },
+  { name: "Tokyo",         country: "Japan",       lat: 35.68,  lng:  139.76 },
+  { name: "Osaka",         country: "Japan",       lat: 34.69,  lng:  135.50 },
+  { name: "Taipei",        country: "Taiwan",      lat: 25.04,  lng:  121.56 },
+  { name: "Sydney",        country: "Australia",   lat: -33.87, lng:  151.21 },
+  { name: "Melbourne",     country: "Australia",   lat: -37.81, lng:  144.96 },
+  { name: "Brisbane",      country: "Australia",   lat: -27.47, lng:  153.03 },
+  { name: "Perth",         country: "Australia",   lat: -31.95, lng:  115.86 },
+  { name: "Auckland",      country: "New Zealand", lat: -36.85, lng:  174.76 },
+];
+const ORIGIN_LABEL = (c) => `${c.name}, ${c.country}`;
+
 const DESTINATIONS = [
-  { name: "Bali",        country: "Indonesia",   flag: "🇮🇩", wikiTitle: "Bali",
+  { name: "Bali",        country: "Indonesia",   flag: "🇮🇩", wikiTitle: "Bali", lat: -8.34, lng: 115.09,
     tags: ["beach","food","relax","culture","nature","diving"],
     budget: 1, purposes: ["fun","romantic","family"], idealDays: [7, 12],
     bestMonths: [4,5,6,7,8,9,10],
     desc: "Lush rice terraces, surf-ready coastlines, and centuries-old temples — all wrapped in some of the warmest hospitality in Southeast Asia." },
-  { name: "Tokyo",       country: "Japan",       flag: "🇯🇵", wikiTitle: "Tokyo",
+  { name: "Tokyo",       country: "Japan",       flag: "🇯🇵", wikiTitle: "Tokyo", lat: 35.68, lng: 139.76,
     tags: ["city","food","shopping","culture","nightlife","art"],
     budget: 3, purposes: ["solo","business","fun","family"], idealDays: [5, 8],
     bestMonths: [3,4,5,9,10,11],
     desc: "Neon-lit streets, hidden ramen counters, and quiet temple gardens. A megacity that somehow feels intimate at every corner." },
-  { name: "Queenstown",  country: "New Zealand", flag: "🇳🇿", wikiTitle: "Queenstown,_New_Zealand",
+  { name: "Queenstown",  country: "New Zealand", flag: "🇳🇿", wikiTitle: "Queenstown,_New_Zealand", lat: -45.03, lng: 168.66,
     tags: ["adventure","hiking","nature","skiing","roadtrip"],
     budget: 3, purposes: ["fun","romantic","solo"], idealDays: [5, 9],
     bestMonths: [12,1,2,6,7,8],
     desc: "The self-styled adventure capital of the world: bungee, jet boats, alpine trails, and ski fields, all framed by impossibly blue lakes." },
-  { name: "Paris",       country: "France",      flag: "🇫🇷", wikiTitle: "Paris",
+  { name: "Paris",       country: "France",      flag: "🇫🇷", wikiTitle: "Paris", lat: 48.85, lng: 2.35,
     tags: ["city","food","art","history","shopping","culture"],
     budget: 3, purposes: ["romantic","business","solo","family"], idealDays: [4, 7],
     bestMonths: [4,5,6,9,10],
     desc: "World-class museums, café culture, and architecture that earns every photograph. A walking city built for slow afternoons." },
-  { name: "Costa Rica",  country: "Costa Rica",  flag: "🇨🇷", wikiTitle: "Costa_Rica",
+  { name: "Costa Rica",  country: "Costa Rica",  flag: "🇨🇷", wikiTitle: "Costa_Rica", lat: 9.93, lng: -84.08,
     tags: ["nature","adventure","wildlife","beach","hiking","diving"],
     budget: 2, purposes: ["family","fun","romantic"], idealDays: [8, 14],
     bestMonths: [12,1,2,3,4],
     desc: "Cloud forests, volcanoes, and two coastlines packed with sloths, surf, and zip-lines. Pura vida, indeed." },
-  { name: "Reykjavík",   country: "Iceland",     flag: "🇮🇸", wikiTitle: "Reykjavík",
+  { name: "Reykjavík",   country: "Iceland",     flag: "🇮🇸", wikiTitle: "Reykjavík", lat: 64.13, lng: -21.94,
     tags: ["nature","adventure","hiking","relax","roadtrip"],
     budget: 3, purposes: ["romantic","solo","fun"], idealDays: [6, 10],
     bestMonths: [6,7,8],
     desc: "Black-sand beaches, geothermal lagoons, and waterfalls every twenty minutes. The Ring Road may be the single best road trip on Earth." },
-  { name: "Barcelona",   country: "Spain",       flag: "🇪🇸", wikiTitle: "Barcelona",
+  { name: "Barcelona",   country: "Spain",       flag: "🇪🇸", wikiTitle: "Barcelona", lat: 41.39, lng: 2.17,
     tags: ["city","food","beach","art","nightlife","culture"],
     budget: 2, purposes: ["fun","romantic","solo","family"], idealDays: [4, 7],
     bestMonths: [4,5,6,9,10],
     desc: "Gaudí's surreal architecture, tapas crawls until 2am, and a beach inside the city. Effortlessly stylish." },
-  { name: "Banff",       country: "Canada",      flag: "🇨🇦", wikiTitle: "Banff_National_Park",
+  { name: "Banff",       country: "Canada",      flag: "🇨🇦", wikiTitle: "Banff_National_Park", lat: 51.18, lng: -115.57,
     tags: ["hiking","nature","skiing","wildlife","roadtrip"],
     budget: 3, purposes: ["family","romantic","solo"], idealDays: [5, 8],
     bestMonths: [6,7,8,9,12,1,2,3],
     desc: "Turquoise glacial lakes and jagged peaks, with bears and elk wandering the edges. World-class skiing in winter, hiking in summer." },
-  { name: "Marrakech",   country: "Morocco",     flag: "🇲🇦", wikiTitle: "Marrakesh",
+  { name: "Marrakech",   country: "Morocco",     flag: "🇲🇦", wikiTitle: "Marrakesh", lat: 31.63, lng: -8.01,
     tags: ["culture","history","food","shopping","art"],
     budget: 1, purposes: ["romantic","fun","solo"], idealDays: [4, 6],
     bestMonths: [3,4,5,10,11],
     desc: "Souks alive with spices, riads with hidden courtyards, and the Atlas Mountains a short drive away. A feast for the senses." },
-  { name: "Santorini",   country: "Greece",      flag: "🇬🇷", wikiTitle: "Santorini",
+  { name: "Santorini",   country: "Greece",      flag: "🇬🇷", wikiTitle: "Santorini", lat: 36.39, lng: 25.46,
     tags: ["beach","food","relax","history","culture"],
     budget: 3, purposes: ["romantic","family"], idealDays: [4, 6],
     bestMonths: [5,6,9,10],
     desc: "Whitewashed villages tumbling toward the Aegean, sunsets that earn the cliché, and Mediterranean food at its simplest and best." },
-  { name: "New York",    country: "USA",         flag: "🇺🇸", wikiTitle: "New_York_City",
+  { name: "New York",    country: "USA",         flag: "🇺🇸", wikiTitle: "New_York_City", lat: 40.71, lng: -74.00,
     tags: ["city","food","shopping","art","nightlife","culture"],
     budget: 3, purposes: ["business","fun","solo","family"], idealDays: [4, 7],
     bestMonths: [4,5,6,9,10,11],
     desc: "Five boroughs, infinite neighborhoods. Every cuisine, every art form, every hour of the day — happening somewhere." },
-  { name: "Patagonia",   country: "Argentina/Chile", flag: "🏔️", wikiTitle: "Patagonia",
+  { name: "Patagonia",   country: "Argentina/Chile", flag: "🏔️", wikiTitle: "Patagonia", lat: -49.32, lng: -72.89,
     tags: ["hiking","adventure","nature","wildlife","roadtrip"],
     budget: 3, purposes: ["solo","fun","romantic"], idealDays: [10, 16],
     bestMonths: [11,12,1,2,3],
     desc: "Granite spires, glaciers, and steppe stretching to the horizon. The kind of trip you remember in detail for the rest of your life." },
-  { name: "Kyoto",       country: "Japan",       flag: "🇯🇵", wikiTitle: "Kyoto",
+  { name: "Kyoto",       country: "Japan",       flag: "🇯🇵", wikiTitle: "Kyoto", lat: 35.01, lng: 135.77,
     tags: ["culture","history","food","relax","art"],
     budget: 2, purposes: ["romantic","solo","family"], idealDays: [4, 6],
     bestMonths: [3,4,5,10,11],
     desc: "Thousands of temples, tea houses tucked down stone lanes, and bamboo groves you can hear breathing. Old Japan at its most distilled." },
-  { name: "Cape Town",   country: "South Africa",flag: "🇿🇦", wikiTitle: "Cape_Town",
+  { name: "Cape Town",   country: "South Africa",flag: "🇿🇦", wikiTitle: "Cape_Town", lat: -33.92, lng: 18.42,
     tags: ["beach","wildlife","food","adventure","nature","hiking"],
     budget: 2, purposes: ["fun","family","romantic","solo"], idealDays: [7, 12],
     bestMonths: [11,12,1,2,3],
     desc: "Where Table Mountain meets two oceans. Wine country, penguin colonies, and safaris all within a few hours." },
-  { name: "Swiss Alps",  country: "Switzerland", flag: "🇨🇭", wikiTitle: "Swiss_Alps",
+  { name: "Swiss Alps",  country: "Switzerland", flag: "🇨🇭", wikiTitle: "Swiss_Alps", lat: 46.55, lng: 8.32,
     tags: ["skiing","hiking","nature","relax","roadtrip"],
     budget: 3, purposes: ["family","romantic","solo"], idealDays: [6, 10],
     bestMonths: [6,7,8,9,12,1,2,3],
     desc: "Storybook villages, scenic trains that feel scripted, and trails for every fitness level. In winter, some of the best skiing on the planet." },
-  { name: "Bangkok",     country: "Thailand",    flag: "🇹🇭", wikiTitle: "Bangkok",
+  { name: "Bangkok",     country: "Thailand",    flag: "🇹🇭", wikiTitle: "Bangkok", lat: 13.75, lng: 100.50,
     tags: ["food","city","nightlife","shopping","culture"],
     budget: 1, purposes: ["fun","solo","business"], idealDays: [3, 5],
     bestMonths: [11,12,1,2],
     desc: "Street food that ruins all other street food, glittering temples, and a nightlife that runs until sunrise." },
-  { name: "Cusco",       country: "Peru",        flag: "🇵🇪", wikiTitle: "Cusco",
+  { name: "Cusco",       country: "Peru",        flag: "🇵🇪", wikiTitle: "Cusco", lat: -13.53, lng: -71.97,
     tags: ["history","hiking","culture","adventure","food"],
     budget: 1, purposes: ["solo","fun","romantic"], idealDays: [5, 8],
     bestMonths: [5,6,7,8,9],
     desc: "The gateway to Machu Picchu, perched at 11,000ft. Inca stonework, Andean markets, and some of the best ceviche outside Lima." },
-  { name: "Maldives",    country: "Maldives",    flag: "🇲🇻", wikiTitle: "Maldives",
+  { name: "Maldives",    country: "Maldives",    flag: "🇲🇻", wikiTitle: "Maldives", lat: 3.20, lng: 73.22,
     tags: ["beach","relax","diving","food"],
     budget: 3, purposes: ["romantic","family"], idealDays: [5, 8],
     bestMonths: [11,12,1,2,3,4],
     desc: "Overwater villas, reefs you can step into from your room, and the kind of stillness that makes a week feel like a month." },
-  { name: "Lisbon",      country: "Portugal",    flag: "🇵🇹", wikiTitle: "Lisbon",
+  { name: "Lisbon",      country: "Portugal",    flag: "🇵🇹", wikiTitle: "Lisbon", lat: 38.72, lng: -9.14,
     tags: ["city","food","beach","history","art","nightlife","culture"],
     budget: 2, purposes: ["solo","fun","romantic","family"], idealDays: [4, 6],
     bestMonths: [4,5,6,9,10],
     desc: "Hilltop miradouros, custard tarts on every corner, and a coastline of surf beaches twenty minutes from downtown." },
-  { name: "Serengeti",   country: "Tanzania",    flag: "🇹🇿", wikiTitle: "Serengeti",
+  { name: "Serengeti",   country: "Tanzania",    flag: "🇹🇿", wikiTitle: "Serengeti", lat: -2.33, lng: 34.83,
     tags: ["wildlife","nature","adventure"],
     budget: 3, purposes: ["family","romantic","solo"], idealDays: [6, 10],
     bestMonths: [7,8,9,10,1,2],
@@ -159,17 +243,53 @@ const MULTI_CITY_TRIPS = [
 const FAVORITES_KEY = "travelapp:favorites";
 const IMG_CACHE_PREFIX = "travelapp:img:";
 
+const TRANSPORT = {
+  any:    { label: "No preference", icon: "🤷", maxKm: Infinity },
+  flight: { label: "Flight",        icon: "✈️", maxKm: Infinity },
+  train:  { label: "Train",         icon: "🚆", maxKm: 2500 },
+  drive:  { label: "Driving",       icon: "🚗", maxKm: 1500 },
+  local:  { label: "Stay local",    icon: "🚌", maxKm: 300  },
+};
+
 const state = {
   selected: new Set(),
   days: 7,
   budget: 2,
-  purpose: "fun",
+  purposes: new Set(["fun"]),
+  transport: "any",
+  origin: null,
   ranked: [],
   lastDest: null,
 };
 
 const $ = (id) => document.getElementById(id);
 const destByName = (name) => DESTINATIONS.find(d => d.name === name);
+
+// ---------- Distance / origin ----------
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const toRad = (x) => x * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function flightTimeApprox(km) {
+  if (km < 200) return null;
+  const hours = km / 850 + 1;
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  return m > 0 ? `~${h}h ${m}m` : `~${h}h`;
+}
+
+function distancePenalty(km, days) {
+  let penalty = (km / 15000) * 0.4;
+  if (days <= 3 && km > 5000) penalty += 2.0;
+  else if (days <= 5 && km > 9000) penalty += 1.5;
+  else if (days <= 7 && km > 13000) penalty += 1.0;
+  return penalty;
+}
 
 // ---------- Image fetching (Wikipedia) ----------
 const imageCache = new Map();
@@ -282,7 +402,9 @@ function encodeStateToURL(destName) {
   if (state.selected.size) params.set("picks", [...state.selected].join(","));
   params.set("days", state.days);
   params.set("budget", state.budget);
-  params.set("purpose", state.purpose);
+  params.set("purposes", [...state.purposes].join(","));
+  params.set("transport", state.transport);
+  if (state.origin) params.set("origin", state.origin.name);
   if (destName) params.set("dest", destName);
   const url = `${location.origin}${location.pathname}?${params.toString()}`;
   return url;
@@ -293,9 +415,11 @@ function applyURLState() {
   const picks = (params.get("picks") || "").split(",").filter(Boolean);
   const days = parseInt(params.get("days"), 10);
   const budget = parseInt(params.get("budget"), 10);
-  const purpose = params.get("purpose");
+  const purposesParam = params.get("purposes") || params.get("purpose");
+  const transportParam = params.get("transport");
+  const originName = params.get("origin");
   const dest = params.get("dest");
-  if (!picks.length && !days && !budget && !purpose && !dest) return false;
+  if (!picks.length && !days && !budget && !purposesParam && !transportParam && !originName && !dest) return false;
 
   picks.forEach(p => state.selected.add(p));
   document.querySelectorAll("#activity-grid .activity").forEach(el => {
@@ -310,9 +434,25 @@ function applyURLState() {
     state.budget = budget;
     $("budget-chips").querySelectorAll(".chip").forEach(c => c.classList.toggle("selected", parseInt(c.dataset.budget,10) === budget));
   }
-  if (purpose && PURPOSES[purpose]) {
-    state.purpose = purpose;
-    $("purpose-chips").querySelectorAll(".chip").forEach(c => c.classList.toggle("selected", c.dataset.purpose === purpose));
+  if (purposesParam) {
+    const ids = purposesParam.split(",").filter(p => PURPOSES[p]);
+    if (ids.length) {
+      state.purposes = new Set(ids);
+      $("purpose-chips").querySelectorAll(".chip").forEach(c => c.classList.toggle("selected", state.purposes.has(c.dataset.purpose)));
+    }
+  }
+  if (transportParam && TRANSPORT[transportParam]) {
+    state.transport = transportParam;
+    $("transport-chips").querySelectorAll(".chip").forEach(c => c.classList.toggle("selected", c.dataset.transport === transportParam));
+  }
+  if (originName) {
+    const c = ORIGIN_CITIES.find(c => c.name === originName);
+    if (c) {
+      state.origin = { ...c };
+      $("origin-input").value = ORIGIN_LABEL(c);
+      const status = $("origin-status");
+      if (status) { status.textContent = `✓ Coming from ${ORIGIN_LABEL(c)}`; status.className = "origin-status ok"; }
+    }
   }
   if (dest) {
     const d = destByName(dest);
@@ -398,24 +538,96 @@ function setupDetails() {
 
   $("purpose-chips").querySelectorAll(".chip").forEach(chip => {
     chip.addEventListener("click", () => {
-      $("purpose-chips").querySelectorAll(".chip").forEach(c => c.classList.remove("selected"));
-      chip.classList.add("selected");
-      state.purpose = chip.dataset.purpose;
+      const id = chip.dataset.purpose;
+      if (state.purposes.has(id)) {
+        if (state.purposes.size > 1) {
+          state.purposes.delete(id);
+          chip.classList.remove("selected");
+        }
+      } else {
+        state.purposes.add(id);
+        chip.classList.add("selected");
+      }
     });
   });
+
+  $("transport-chips").querySelectorAll(".chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      $("transport-chips").querySelectorAll(".chip").forEach(c => c.classList.remove("selected"));
+      chip.classList.add("selected");
+      state.transport = chip.dataset.transport;
+    });
+  });
+
+  const list = $("origin-list");
+  list.innerHTML = ORIGIN_CITIES.map(c => `<option value="${ORIGIN_LABEL(c)}"></option>`).join("");
+  const input = $("origin-input");
+  const status = $("origin-status");
+  const updateOrigin = () => {
+    const val = input.value.trim();
+    if (!val) {
+      state.origin = null;
+      status.textContent = "Optional — improves recommendations.";
+      status.className = "origin-status";
+      return;
+    }
+    const match = ORIGIN_CITIES.find(c => ORIGIN_LABEL(c).toLowerCase() === val.toLowerCase()
+      || c.name.toLowerCase() === val.toLowerCase());
+    if (match) {
+      state.origin = { ...match };
+      input.value = ORIGIN_LABEL(match);
+      status.textContent = `✓ Coming from ${ORIGIN_LABEL(match)}`;
+      status.className = "origin-status ok";
+    } else {
+      state.origin = null;
+      status.textContent = "Pick a city from the list (or leave blank).";
+      status.className = "origin-status warn";
+    }
+  };
+  input.addEventListener("change", updateOrigin);
+  input.addEventListener("blur", updateOrigin);
 }
 
 // ---------- Ranking ----------
+function purposeMatchCount(dest) {
+  let count = 0;
+  for (const p of state.purposes) {
+    if (p !== "other" && dest.purposes.includes(p)) count++;
+  }
+  return count;
+}
+
+function purposeBonus(matchCount) {
+  if (matchCount === 0) return 0;
+  return 1.0 + (matchCount - 1) * 0.4;
+}
+
 function rankDestinations() {
   const picks = state.selected;
   let pool = DESTINATIONS.filter(d => d.budget <= state.budget);
   if (pool.length === 0) pool = DESTINATIONS;
 
+  if (state.origin) {
+    pool = pool.filter(d => haversineKm(state.origin.lat, state.origin.lng, d.lat, d.lng) > 50);
+
+    const cap = TRANSPORT[state.transport]?.maxKm ?? Infinity;
+    if (cap !== Infinity) {
+      const filtered = pool.filter(d => haversineKm(state.origin.lat, state.origin.lng, d.lat, d.lng) <= cap);
+      if (filtered.length > 0) pool = filtered;
+    }
+  }
+
   const scored = pool.map(d => {
     const matches = d.tags.filter(t => picks.has(t));
     let score = matches.length;
-    if (state.purpose !== "other" && d.purposes.includes(state.purpose)) score += 1.5;
-    return { ...d, score, matches };
+    score += purposeBonus(purposeMatchCount(d));
+    let distanceKm = null, flight = null;
+    if (state.origin) {
+      distanceKm = haversineKm(state.origin.lat, state.origin.lng, d.lat, d.lng);
+      flight = flightTimeApprox(distanceKm);
+      score -= distancePenalty(distanceKm, state.days);
+    }
+    return { ...d, score, matches, distanceKm, flight };
   });
   scored.sort((a, b) => b.score - a.score || Math.random() - 0.5);
   return scored.filter(d => d.score > 0).slice(0, 5);
@@ -433,7 +645,7 @@ function rankMultiCity() {
       const tagSet = new Set(cities.flatMap(c => c.tags));
       const matches = [...tagSet].filter(tag => picks.has(tag));
       let score = matches.length;
-      const purposeMatch = state.purpose !== "other" && cities.some(c => c.purposes.includes(state.purpose));
+      const purposeMatch = cities.some(c => purposeMatchCount(c) > 0);
       if (purposeMatch) score += 1;
       return { ...t, cities, matches, score };
     })
@@ -464,6 +676,7 @@ function renderOptions() {
               <span class="meta-item">${BUDGET_LABELS[d.budget].icon}</span>
               <span class="meta-item">${d.idealDays[0]}–${d.idealDays[1]} days</span>
               <span class="meta-item season ${status}">${monthStatusLabel(status)}</span>
+              ${d.flight ? `<span class="meta-item">✈ ${d.flight}</span>` : ""}
             </div>
             <div class="tags">
               ${d.matches.map(t => `<span class="tag">${labelFor(t)}</span>`).join("")}
@@ -557,10 +770,12 @@ function showResult(dest) {
   state.lastDest = dest;
   const card = $("result-card");
   const matchedLabels = dest.matches ? dest.matches.map(labelFor).join(", ") : dest.tags.filter(t => state.selected.has(t)).map(labelFor).join(", ");
-  const purpose = PURPOSES[state.purpose];
+  const purposeList = [...state.purposes];
   const budget = BUDGET_LABELS[dest.budget];
   const status = monthStatus(dest.bestMonths);
   const fav = isFavorite(dest.name);
+  const transport = TRANSPORT[state.transport];
+  const matchedPurposes = purposeList.filter(p => p !== "other" && dest.purposes.includes(p));
 
   card.innerHTML = `
     <div class="result-hero" data-wiki="${dest.wikiTitle}"><span class="img-flag big">${dest.flag}</span></div>
@@ -571,7 +786,9 @@ function showResult(dest) {
     <div class="trip-summary">
       <div class="summary-item"><span class="summary-icon">📅</span><span>${state.days} day${state.days === 1 ? "" : "s"}</span></div>
       <div class="summary-item"><span class="summary-icon">${budget.icon}</span><span>${budget.label}</span></div>
-      <div class="summary-item"><span class="summary-icon">${purpose.icon}</span><span>${purpose.label}</span></div>
+      <div class="summary-item"><span class="summary-icon">${purposeList.map(p => PURPOSES[p].icon).join("")}</span><span>${purposeList.map(p => PURPOSES[p].label).join(", ")}</span></div>
+      ${state.transport !== "any" ? `<div class="summary-item"><span class="summary-icon">${transport.icon}</span><span>${transport.label}</span></div>` : ""}
+      ${state.origin && dest.flight ? `<div class="summary-item"><span class="summary-icon">📍</span><span>${dest.flight} from ${state.origin.name}</span></div>` : ""}
     </div>
 
     <div class="best-time">
@@ -579,7 +796,7 @@ function showResult(dest) {
       <span>Best months: ${bestMonthsRange(dest.bestMonths)}</span>
     </div>
 
-    <div class="why"><strong>Why this fits:</strong> matches your love of ${matchedLabels || "the activities you picked"}${state.purpose !== "other" && dest.purposes.includes(state.purpose) ? `, and works well for a ${purpose.label.toLowerCase()}` : ""}.</div>
+    <div class="why"><strong>Why this fits:</strong> matches your love of ${matchedLabels || "the activities you picked"}${matchedPurposes.length ? `, and works well for a ${matchedPurposes.map(p => PURPOSES[p].label.toLowerCase()).join(" or ")}` : ""}.</div>
     <div class="duration-note">${durationNote(dest, state.days)}</div>
 
     <div class="result-actions">
@@ -601,7 +818,7 @@ function showResult(dest) {
 
 function showMultiCityResult(trip) {
   const card = $("result-card");
-  const purpose = PURPOSES[state.purpose];
+  const purposeList = [...state.purposes];
   const allMatches = [...new Set(trip.cities.flatMap(c => c.tags.filter(t => state.selected.has(t))))];
   const perCity = Math.floor(state.days / trip.cities.length);
 
@@ -615,7 +832,7 @@ function showMultiCityResult(trip) {
 
     <div class="trip-summary">
       <div class="summary-item"><span class="summary-icon">📅</span><span>${state.days} days (~${perCity} per city)</span></div>
-      <div class="summary-item"><span class="summary-icon">${purpose.icon}</span><span>${purpose.label}</span></div>
+      <div class="summary-item"><span class="summary-icon">${purposeList.map(p => PURPOSES[p].icon).join("")}</span><span>${purposeList.map(p => PURPOSES[p].label).join(", ")}</span></div>
     </div>
 
     <div class="why"><strong>Why this combo:</strong> ${allMatches.length ? `together hits ${allMatches.map(labelFor).join(", ")}` : "the cities pair naturally and split the days nicely"}.</div>

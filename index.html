@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Where Should I Go?</title>
-  <link rel="stylesheet" href="styles.css?v=3" />
+  <link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
   <main id="app">
@@ -51,7 +51,7 @@
       </div>
 
       <div class="field">
-        <label class="field-label">Purpose of the trip</label>
+        <label class="field-label">Purpose of the trip <span class="field-hint">(pick one or more)</span></label>
         <div class="chips chips-grid" id="purpose-chips">
           <button type="button" class="chip selected" data-purpose="fun"><span class="chip-icon">🎉</span><span class="chip-label">Fun with friends</span></button>
           <button type="button" class="chip" data-purpose="family"><span class="chip-icon">👨‍👩‍👧</span><span class="chip-label">Family gathering</span></button>
@@ -59,6 +59,26 @@
           <button type="button" class="chip" data-purpose="solo"><span class="chip-icon">🎒</span><span class="chip-label">Solo trip</span></button>
           <button type="button" class="chip" data-purpose="business"><span class="chip-icon">💼</span><span class="chip-label">Business</span></button>
           <button type="button" class="chip" data-purpose="other"><span class="chip-icon">✨</span><span class="chip-label">Other</span></button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="origin-input">Where are you coming from?</label>
+        <div class="origin-row">
+          <input type="text" id="origin-input" list="origin-list" placeholder="Start typing a city — e.g. Toronto" autocomplete="off" />
+          <datalist id="origin-list"></datalist>
+        </div>
+        <span class="origin-status" id="origin-status">Optional — improves recommendations.</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label">How do you want to travel?</label>
+        <div class="chips" id="transport-chips">
+          <button type="button" class="chip selected" data-transport="any"><span class="chip-icon">🤷</span><span class="chip-label">No preference</span></button>
+          <button type="button" class="chip" data-transport="flight"><span class="chip-icon">✈️</span><span class="chip-label">Flight</span></button>
+          <button type="button" class="chip" data-transport="train"><span class="chip-icon">🚆</span><span class="chip-label">Train</span></button>
+          <button type="button" class="chip" data-transport="drive"><span class="chip-icon">🚗</span><span class="chip-label">Drive</span></button>
+          <button type="button" class="chip" data-transport="local"><span class="chip-icon">🚌</span><span class="chip-label">Stay local</span></button>
         </div>
       </div>
 
@@ -101,6 +121,6 @@
     </section>
   </main>
 
-  <script src="script.js?v=3"></script>
+  <script src="script.js?v=4"></script>
 </body>
 </html>
