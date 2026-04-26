@@ -242,6 +242,7 @@ const MULTI_CITY_TRIPS = [
 
 const FAVORITES_KEY = "travelapp:favorites";
 const IMG_CACHE_PREFIX = "travelapp:img:";
+const WORKER_URL = "https://travelapp-worker.travelapp.workers.dev";
 
 const TRANSPORT = {
   any:    { label: "No preference", icon: "🤷", maxKm: Infinity },
@@ -802,7 +803,9 @@ function showResult(dest) {
     <div class="result-actions">
       <button class="ghost fav-btn ${fav ? "active" : ""}" id="fav-btn">${fav ? "★ Saved" : "☆ Save"}</button>
       <button class="ghost" id="share-btn">🔗 Copy share link</button>
+      <button class="primary" id="ai-btn">✨ Generate AI itinerary</button>
     </div>
+    <div id="ai-output" class="ai-output"></div>
   `;
   applyImage($("result-card").querySelector(".result-hero"), dest.wikiTitle, "full");
   $("fav-btn").addEventListener("click", () => {
@@ -813,7 +816,59 @@ function showResult(dest) {
     btn.textContent = isFav ? "★ Saved" : "☆ Save";
   });
   $("share-btn").addEventListener("click", () => copyShareLink(dest.name));
+  $("ai-btn").addEventListener("click", () => generateItinerary(dest));
   goTo("step-result");
+}
+
+async function generateItinerary(dest) {
+  const btn = $("ai-btn");
+  const out = $("ai-output");
+  btn.disabled = true;
+  btn.textContent = "Generating…";
+  out.classList.add("active");
+  out.innerHTML = `<div class="ai-loading">Thinking through your trip<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>`;
+
+  try {
+    const res = await fetch(`${WORKER_URL}/itinerary`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        destination: dest.name,
+        country: dest.country,
+        days: state.days,
+        budget: dest.budget,
+        purposes: [...state.purposes],
+        transport: state.transport,
+        origin: state.origin?.name,
+      }),
+    });
+
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`;
+      try { const j = await res.json(); if (j.error) msg = j.error; } catch {}
+      throw new Error(msg);
+    }
+
+    out.innerHTML = `<div class="ai-content"></div>`;
+    const content = out.querySelector(".ai-content");
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      content.innerHTML = window.marked ? marked.parse(buf) : buf.replace(/</g, "&lt;");
+    }
+
+    btn.textContent = "✨ Regenerate";
+  } catch (err) {
+    out.innerHTML = `<div class="ai-error">Couldn't generate the itinerary: ${err.message}</div>`;
+    btn.textContent = "✨ Try again";
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function showMultiCityResult(trip) {
