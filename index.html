@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Where Should I Go?</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
-  <link rel="stylesheet" href="styles.css?v=17" />
+  <link rel="stylesheet" href="styles.css?v=18" />
 </head>
 <body>
   <main id="app">
@@ -125,6 +125,10 @@
         <button class="primary" id="surprise-btn">Surprise me</button>
       </div>
       <div id="refresh-panel" class="refresh-panel">
+        <div class="refresh-keep" id="refresh-keep">
+          <label class="field-label">Keep any of these? <span class="field-hint">(optional)</span></label>
+          <div class="refresh-keep-list" id="refresh-keep-list"></div>
+        </div>
         <label class="field-label" for="refresh-note">What would you like different? <span class="field-hint">(optional)</span></label>
         <textarea id="refresh-note" placeholder="e.g. less beachy, more European cities, somewhere quieter, skip island destinations"></textarea>
         <div class="refresh-panel-actions">
@@ -138,6 +142,9 @@
     <section class="step" id="step-compare">
       <h2>Side-by-side</h2>
       <p class="sub">Your top picks, lined up.</p>
+      <div class="compare-bar">
+        <button class="ghost" id="show-previews-btn">📝 Show short itineraries</button>
+      </div>
       <div id="compare-grid" class="compare-grid"></div>
       <div class="actions">
         <button class="ghost" data-next="step-options">Back to options</button>
@@ -156,6 +163,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/marked@14.1.4/marked.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
-  <script src="script.js?v=17"></script>
+  <script src="script.js?v=18"></script>
 </body>
 </html>

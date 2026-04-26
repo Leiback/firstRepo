@@ -228,6 +228,37 @@ const DESTINATIONS = [
     desc: "The great migration, big-five game drives, and night skies you forgot were possible. The original safari." },
 ];
 
+const BACKGROUNDS = [
+  "linear-gradient(135deg, #0f1226 0%, #1a1f3d 100%)",  // Northern lights (default-ish)
+  "linear-gradient(135deg, #4b6cb7 0%, #182848 100%)",  // Mountain mist
+  "linear-gradient(135deg, #355c7d 0%, #c06c84 100%)",  // Coastal twilight
+  "linear-gradient(135deg, #134e5e 0%, #71b280 100%)",  // Aurora forest
+  "linear-gradient(135deg, #654ea3 0%, #b67aaa 100%)",  // Tokyo dusk
+  "linear-gradient(135deg, #8b3329 0%, #4f4060 100%)",  // Tuscany evening
+  "linear-gradient(135deg, #b13a35 0%, #6e3270 100%)",  // Saharan dusk
+  "linear-gradient(135deg, #2c3e50 0%, #4ca1af 100%)",  // Misty mountains
+  "linear-gradient(135deg, #0f2027 0%, #2c5364 100%)",  // Ocean storm
+  "linear-gradient(135deg, #5c2974 0%, #834d9b 100%)",  // Vineyard
+  "linear-gradient(135deg, #006994 0%, #2193b0 100%)",  // Pacific deep
+  "linear-gradient(135deg, #1f5582 0%, #2980b9 100%)",  // Greek isle
+  "linear-gradient(135deg, #c5350f 0%, #c98a1a 100%)",  // Andean dawn
+  "linear-gradient(135deg, #c2185b 0%, #d84315 100%)",  // Volcano
+  "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",  // Forest path
+  "linear-gradient(135deg, #134e5e 0%, #00b4d8 100%)",  // Mediterranean
+  "linear-gradient(135deg, #4b6cb7 0%, #6a82fb 100%)",  // Lavender night
+  "linear-gradient(135deg, #a13a14 0%, #c98715 100%)",  // Sahara
+  "linear-gradient(135deg, #2c5364 0%, #834d9b 100%)",  // Plum twilight
+  "linear-gradient(135deg, #4ca1af 0%, #c06c84 100%)",  // Mountain dawn
+];
+
+function pickBackground() {
+  const bg = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)];
+  document.body.style.background = bg;
+  document.body.style.backgroundAttachment = "fixed";
+}
+
+pickBackground();
+
 const FAVORITES_KEY = "travelapp:favorites";
 const IMG_CACHE_PREFIX = "travelapp:img:";
 const ITIN_PREFIX = "travelapp:itin:";
@@ -253,8 +284,10 @@ const state = {
   ranked: [],
   lastDest: null,
   itineraries: {},
+  previews: {},
   abortController: null,
   lockedDests: new Set(),
+  compareSet: new Set(),
   viewMode: "cards",
   multiCity: [],
   itineraryMode: null,
@@ -833,7 +866,7 @@ async function renderOptions(force = false, feedback = null) {
 
   if (!force && state.lastOptionsKey === key && state.ranked.length > 0) {
     renderRankedCards();
-    $("compare-btn").disabled = state.ranked.length < 2;
+    updateCompareButton();
     $("surprise-btn").disabled = state.ranked.length === 0;
     renderMultiCity();
     return;
@@ -911,9 +944,22 @@ async function renderOptions(force = false, feedback = null) {
 
   renderRankedCards();
   if (state.viewMode === "map") renderMap();
-  $("compare-btn").disabled = state.ranked.length < 2;
+  updateCompareButton();
   $("surprise-btn").disabled = state.ranked.length === 0;
   renderMultiCity();
+}
+
+function updateCompareButton() {
+  const btn = $("compare-btn");
+  if (!btn) return;
+  const selectable = state.ranked.filter(d => state.compareSet.has(d.name)).length;
+  if (selectable >= 2) {
+    btn.textContent = `Compare selected (${selectable})`;
+    btn.disabled = false;
+  } else {
+    btn.textContent = "Compare top 3";
+    btn.disabled = state.ranked.length < 2;
+  }
 }
 
 let mapInstance = null;
@@ -1013,9 +1059,11 @@ function renderRankedCards() {
   list.innerHTML = state.ranked.map((d, i) => {
     const status = monthStatus(d.bestMonths);
     const locked = state.lockedDests.has(d.name);
+    const inCompare = state.compareSet.has(d.name);
     return `
-      <div class="dest-card ${locked ? "locked" : ""}" data-idx="${i}">
-        <button class="lock-btn" data-name="${d.name}" title="${locked ? "Unlock — will refresh on Fresh picks" : "Lock — keep on Fresh picks"}">${locked ? "🔒" : "🔓"}</button>
+      <div class="dest-card ${locked ? "locked" : ""} ${inCompare ? "compare-selected" : ""}" data-idx="${i}">
+        <button class="card-corner-btn compare-select-btn" data-name="${d.name}" title="${inCompare ? "Remove from compare" : "Add to compare"}">${inCompare ? "✅" : "☐"}</button>
+        <button class="card-corner-btn lock-btn" data-name="${d.name}" title="${locked ? "Unlock — will refresh on Fresh picks" : "Lock — keep on Fresh picks"}">${locked ? "🔒" : "🔓"}</button>
         <div class="dest-img" data-wiki="${d.wikiTitle}">
           <span class="img-flag">${d.flag}</span>
         </div>
@@ -1053,6 +1101,25 @@ function renderRankedCards() {
         el.title = "Unlock — will refresh on Fresh picks";
         card.classList.add("locked");
       }
+    });
+  });
+  list.querySelectorAll(".compare-select-btn").forEach(el => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const name = el.dataset.name;
+      const card = el.closest(".dest-card");
+      if (state.compareSet.has(name)) {
+        state.compareSet.delete(name);
+        el.textContent = "☐";
+        el.title = "Add to compare";
+        card.classList.remove("compare-selected");
+      } else {
+        state.compareSet.add(name);
+        el.textContent = "✅";
+        el.title = "Remove from compare";
+        card.classList.add("compare-selected");
+      }
+      updateCompareButton();
     });
   });
   list.querySelectorAll(".dest-card").forEach(el => {
@@ -1104,12 +1171,19 @@ function labelFor(id) {
 
 // ---------- Comparison ----------
 function renderComparison() {
-  const top = state.ranked.slice(0, 3);
+  // Use the user's custom compare set if 2+ are selected; otherwise default to top 3.
+  let top;
+  if (state.compareSet.size >= 2) {
+    top = state.ranked.filter(d => state.compareSet.has(d.name));
+  } else {
+    top = state.ranked.slice(0, 3);
+  }
   const wrap = $("compare-grid");
   if (top.length === 0) { wrap.innerHTML = `<p class="sub">Nothing to compare yet.</p>`; return; }
   wrap.style.gridTemplateColumns = `repeat(${top.length}, minmax(0, 1fr))`;
   wrap.innerHTML = top.map((d, i) => {
     const status = monthStatus(d.bestMonths);
+    const cached = state.previews[d.name];
     return `
       <div class="compare-col" data-idx="${i}">
         <div class="compare-img" data-wiki="${d.wikiTitle}"><span class="img-flag">${d.flag}</span></div>
@@ -1122,18 +1196,99 @@ function renderComparison() {
           <dt>Right now</dt><dd><span class="season ${status}">${monthStatusLabel(status)}</span></dd>
           <dt>Matches</dt><dd>${d.matches.map(labelFor).join(", ") || "—"}</dd>
         </dl>
+        <div class="compare-preview" data-name="${d.name}" style="${cached ? "" : "display:none"}">
+          ${cached ? `<div class="compare-preview-content">${window.marked ? marked.parse(cached) : cached}</div>` : ""}
+        </div>
         <button class="primary compare-pick" data-idx="${i}">Pick ${d.name}</button>
       </div>
     `;
   }).join("");
   wrap.querySelectorAll(".compare-img").forEach(el => applyImage(el, el.dataset.wiki, "thumb"));
   wrap.querySelectorAll(".compare-pick").forEach(btn => {
-    btn.addEventListener("click", () => showResult(top[parseInt(btn.dataset.idx, 10)]));
+    btn.addEventListener("click", () => {
+      const dest = top[parseInt(btn.dataset.idx, 10)];
+      // If user has seen the short itinerary in compare, jump straight to full.
+      const sawPreview = !!state.previews[dest.name];
+      showResult(dest, sawPreview ? { autoGenerate: "full" } : {});
+    });
   });
+
+  // Reset the "show previews" button — visible only if some destination still lacks a cached preview
+  const showBtn = $("show-previews-btn");
+  if (showBtn) {
+    const allCached = top.length > 0 && top.every(d => state.previews[d.name]);
+    if (allCached) {
+      showBtn.style.display = "none";
+    } else {
+      showBtn.style.display = "";
+      showBtn.disabled = false;
+      showBtn.textContent = "📝 Show short itineraries";
+    }
+  }
+}
+
+async function fetchPreviewForCompare(dest) {
+  if (state.previews[dest.name]) return state.previews[dest.name];
+  try {
+    const res = await fetch(`${WORKER_URL}/itinerary`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        destination: dest.name,
+        country: dest.country,
+        days: state.days,
+        budget: dest.budget,
+        purposes: [...state.purposes],
+        transport: state.transport,
+        origin: state.origin?.name,
+        startDate: state.startDate || undefined,
+        group: state.group || undefined,
+        mode: "preview",
+      }),
+    });
+    if (!res.ok) return null;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      // Live update the column as text streams in
+      const el = document.querySelector(`.compare-preview[data-name="${CSS.escape(dest.name)}"] .compare-preview-content`);
+      if (el) el.innerHTML = window.marked ? marked.parse(buf) : buf.replace(/</g, "&lt;");
+    }
+    state.previews[dest.name] = buf;
+    return buf;
+  } catch {
+    return null;
+  }
+}
+
+async function loadComparePreviews() {
+  const top = state.compareSet.size >= 2
+    ? state.ranked.filter(d => state.compareSet.has(d.name))
+    : state.ranked.slice(0, 3);
+  const btn = $("show-previews-btn");
+  btn.disabled = true;
+  btn.textContent = "Loading short itineraries…";
+
+  // Reveal each column's preview area with a loading shimmer
+  top.forEach(d => {
+    const panel = document.querySelector(`.compare-preview[data-name="${CSS.escape(d.name)}"]`);
+    if (!panel) return;
+    panel.style.display = "";
+    if (!panel.querySelector(".compare-preview-content")) {
+      panel.innerHTML = `<div class="compare-preview-content"><div class="ai-loading">Sketching<span class="dots"><span>.</span><span>.</span><span>.</span></span></div></div>`;
+    }
+  });
+
+  await Promise.all(top.map(d => fetchPreviewForCompare(d)));
+  btn.style.display = "none";
 }
 
 // ---------- Result ----------
-function showResult(dest) {
+function showResult(dest, opts = {}) {
   state.lastDest = dest;
   state.itineraryMode = null;
   const card = $("result-card");
@@ -1211,7 +1366,7 @@ function showResult(dest) {
     generateItinerary(dest, "full");
   });
   $("download-btn").addEventListener("click", () => {
-    const text = state.itineraries[dest.name] || loadItinerary(dest.name);
+    const text = loadItinerary(dest.name);
     if (text) downloadItinerary(dest.name, text);
   });
 
@@ -1232,6 +1387,12 @@ function showResult(dest) {
   }
 
   goTo("step-result");
+
+  // Compare → Pick path: jump straight to the full plan since user already
+  // saw the short itinerary in the comparison view.
+  if (opts.autoGenerate === "full" && !saved) {
+    generateItinerary(dest, "full");
+  }
 }
 
 async function streamMarkdownToContent(url, body, dest, btn, opts = {}) {
@@ -1274,7 +1435,7 @@ async function streamMarkdownToContent(url, body, dest, btn, opts = {}) {
     }
 
     if (isPreview) {
-      state.itineraries[dest.name] = buf; // in-memory only
+      state.previews[dest.name] = buf;
       state.itineraryMode = "preview";
       btn.textContent = "✨ Regenerate preview";
       if (upgrade) upgrade.style.display = "";
@@ -1341,7 +1502,7 @@ async function generateItinerary(dest, mode = "preview") {
 }
 
 async function refineItinerary(dest, instruction) {
-  const current = loadItinerary(dest.name) || state.itineraries[dest.name];
+  const current = loadItinerary(dest.name) || state.previews[dest.name];
   if (!current) return;
   // Refine in whatever mode is currently displayed — preview stays short, full stays detailed.
   const mode = state.itineraryMode || "full";
@@ -1421,6 +1582,12 @@ document.querySelectorAll("[data-next]").forEach(btn => {
 $("next-to-details-btn").addEventListener("click", () => goTo("step-details"));
 $("find-btn").addEventListener("click", () => goTo("step-options"));
 $("compare-btn").addEventListener("click", () => goTo("step-compare"));
+$("show-previews-btn").addEventListener("click", () => loadComparePreviews());
+
+// Re-roll the background on "Start over" (only the result-page version)
+document.querySelectorAll('#step-result [data-next="step-activities"]').forEach(btn => {
+  btn.addEventListener("click", () => pickBackground());
+});
 $("view-cards-btn").addEventListener("click", () => setViewMode("cards"));
 $("view-map-btn").addEventListener("click", () => setViewMode("map"));
 
@@ -1445,9 +1612,32 @@ document.addEventListener("keydown", (e) => {
     dismissResult();
   }
 });
+function populateRefreshKeepList() {
+  const wrap = $("refresh-keep-list");
+  const keepSection = $("refresh-keep");
+  if (state.ranked.length === 0) {
+    keepSection.style.display = "none";
+    return;
+  }
+  keepSection.style.display = "";
+  wrap.innerHTML = state.ranked.map((d, i) => `
+    <label class="refresh-keep-item${state.lockedDests.has(d.name) ? " checked" : ""}">
+      <input type="checkbox" data-name="${d.name}" ${state.lockedDests.has(d.name) ? "checked" : ""} />
+      <span class="refresh-keep-flag">${d.flag}</span>
+      <span class="refresh-keep-name">${d.name}</span>
+    </label>
+  `).join("");
+  wrap.querySelectorAll(".refresh-keep-item input").forEach(input => {
+    input.addEventListener("change", (e) => {
+      e.target.closest(".refresh-keep-item").classList.toggle("checked", e.target.checked);
+    });
+  });
+}
+
 $("refresh-btn").addEventListener("click", () => {
   const panel = $("refresh-panel");
   panel.classList.add("active");
+  populateRefreshKeepList();
   setTimeout(() => $("refresh-note").focus(), 50);
 });
 $("refresh-cancel").addEventListener("click", () => {
@@ -1456,6 +1646,11 @@ $("refresh-cancel").addEventListener("click", () => {
 });
 $("refresh-submit").addEventListener("click", () => {
   const note = $("refresh-note").value.trim();
+  // Sync the keep checkboxes back into state.lockedDests so refresh respects them
+  const checkboxes = $("refresh-keep-list").querySelectorAll("input[type=checkbox]");
+  state.lockedDests = new Set(
+    [...checkboxes].filter(c => c.checked).map(c => c.dataset.name)
+  );
   $("refresh-panel").classList.remove("active");
   $("refresh-note").value = "";
   renderOptions(true, note || null);

@@ -461,21 +461,21 @@ async function handleItinerary(
   });
 }
 
-const PREVIEW_SYSTEM_PROMPT = `You are a travel planner. Write a SHORT preview of a trip — just enough for the user to see the overall arc and decide whether to commit to a full detailed plan.
+const PREVIEW_SYSTEM_PROMPT = `You write quick day-by-day travel sketches. For each day of the trip, output ONE bullet point with the major places to visit or activities to do that day. No overview paragraph, no tips, no practical notes — just the day list.
 
 # Output format (Markdown)
 
-1. A 2-3 sentence **trip overview** describing the trip's structure (e.g., "split between X and Y, base in Z; first half is for adventure, second half slows down").
-2. A bulleted list, **one line per day**, with the day theme and 1-2 specific anchors (named neighborhood, landmark, or activity).
+- **Day 1:** <neighborhood or area> — <main activity or place>, <secondary activity or place>
+- **Day 2:** ...
+- ...
 
-Keep the whole response **under ~150 words**. No bold sections, no Practical Notes, no per-day timing — that's for the full plan.
+Keep each line tight: 1 line per day, 2-3 specific anchors max. No commentary above or below the list.
 
 # Style
 
-- Be specific. Name venues, neighborhoods, regions. "Day 3: Move to Ubud, dinner at Locavore" beats "Day 3: experience Bali".
-- Lean into the trip's actual constraints — days, budget, purposes, group, dates. If dates are given, account for season.
-- Avoid travel-brochure clichés ("hidden gem", "feast for the senses", "must-see").
-- No commentary. Just the overview + day list.`;
+- Be specific. Name actual neighborhoods, landmarks, venues. "Day 3: Ubud — Tegallalang rice terraces, Sacred Monkey Forest" beats "Day 3: explore Bali."
+- Match the trip's days, budget, purposes, group, and dates. If dates are given, account for season.
+- Avoid travel-brochure clichés ("hidden gem", "must-see").`;
 
 const REFINE_SYSTEM_PROMPT = ITINERARY_SYSTEM_PROMPT + `
 
