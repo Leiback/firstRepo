@@ -1420,7 +1420,12 @@ $("compare-btn").addEventListener("click", () => goTo("step-compare"));
 $("view-cards-btn").addEventListener("click", () => setViewMode("cards"));
 $("view-map-btn").addEventListener("click", () => setViewMode("map"));
 
-// Result page: clicking outside the card (or pressing Esc) goes back to options
+// Result page: clicking outside the card (or pressing Esc) goes back to options.
+// Also aborts any in-flight AI generation so we stop streaming + stop billing.
+function dismissResult() {
+  if (state.abortController) state.abortController.abort();
+  goTo("step-options");
+}
 document.addEventListener("click", (e) => {
   if (!$("step-result").classList.contains("active")) return;
   // Ignore clicks whose target lives in a step that just became inactive
@@ -1429,11 +1434,11 @@ document.addEventListener("click", (e) => {
   if (targetStep && !targetStep.classList.contains("active")) return;
   if ($("result-card").contains(e.target)) return;
   if (e.target.closest(".actions")) return;
-  goTo("step-options");
+  dismissResult();
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && $("step-result").classList.contains("active")) {
-    goTo("step-options");
+    dismissResult();
   }
 });
 $("refresh-btn").addEventListener("click", () => {
