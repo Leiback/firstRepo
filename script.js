@@ -1386,6 +1386,19 @@ $("find-btn").addEventListener("click", () => goTo("step-options"));
 $("compare-btn").addEventListener("click", () => goTo("step-compare"));
 $("view-cards-btn").addEventListener("click", () => setViewMode("cards"));
 $("view-map-btn").addEventListener("click", () => setViewMode("map"));
+
+// Result page: clicking outside the card (or pressing Esc) goes back to options
+document.addEventListener("click", (e) => {
+  if (!$("step-result").classList.contains("active")) return;
+  if ($("result-card").contains(e.target)) return;
+  if (e.target.closest(".actions")) return;
+  goTo("step-options");
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("step-result").classList.contains("active")) {
+    goTo("step-options");
+  }
+});
 $("refresh-btn").addEventListener("click", () => {
   const panel = $("refresh-panel");
   panel.classList.add("active");
